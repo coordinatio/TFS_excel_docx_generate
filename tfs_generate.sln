@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33213.308
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "tfs_generate", "tfs_generate.pyproj", "{F16BAC9B-11A2-44BA-9CD2-8EC4FF8A9DAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F16BAC9B-11A2-44BA-9CD2-8EC4FF8A9DAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F16BAC9B-11A2-44BA-9CD2-8EC4FF8A9DAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8CD7B225-D5F8-4A68-A6FA-C6134D75C069}
+	EndGlobalSection
+EndGlobal
