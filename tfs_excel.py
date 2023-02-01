@@ -78,7 +78,7 @@ for i in range(len(list_array)): # Заполнение таблицы с пом
     for j in range(len(list_array[0])):
         worksheet.write(i,j,list_array[i][j])        
 
-workbook.close() # Сохрянаем файл
+workbook.close() # Сохраняем файл
 
     
 
