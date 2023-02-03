@@ -1,7 +1,10 @@
+from asyncio import tasks
+from asyncio.base_tasks import _task_get_stack
 from itertools import count
 from typing import ItemsView
 from tfs import TFSAPI
 import xlsxwriter
+import re
 
 
 
@@ -11,11 +14,11 @@ client = TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI",pat=pat) # С�
 
 custom_start = '01-01-2023' # Дата начала
 custom_end = '31-01-2023' # Дата конца
-
+# AND [System.AssignedTo] <> ' '
 # Запрос 
 query = """SELECT [System.AssignedTo], [Tags]
 FROM workitems
-WHERE [System.State] = 'Done' AND [System.AssignedTo] <> ' '  AND [System.WorkItemType] = 'Task' AND ([Created Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
+WHERE [System.State] = 'Done'  AND [System.WorkItemType] = 'Task' AND ([Created Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
 ORDER BY [System.AssignedTo]
 """
 
@@ -24,14 +27,29 @@ workitems = wiql.workitems # Получаем объекты из запроса
 
 members = [] # Лист прикрепленных к задаче людей
 tags = [] # Лист тегов
+tasks_unassigned = [] # Лист unassigned тасков
+id_unassigned = [] # Лист id unassigned тасков
+
+def get_tag_from_parent(item): # Поиск тега таска через родителей
+    if (item.parent):
+        if (item.parent['Tags']):
+            if(re.fullmatch(r'^[A-Z]+_\d+\.\d+\.\d+$', item.parent['Tags'])):
+                return item.parent['Tags']
+            else: return None
+        else:
+            get_tag_from_parent(item.parent)
+    else: return None
 
 for x in workitems: # Выборка данных
     if (x['AssignedTo']):
         members.append(x['AssignedTo'][:x['AssignedTo'].find(' <')]) 
+        if (x['Tags']):
+            tags.append(x['Tags'])
+        else:
+            tags.append(get_tag_from_parent(x))
     else:
-        members.append(x['AssignedTo'])    
-    tags.append(x['Tags'])
-    
+        tasks_unassigned.append(x['Title'])
+        id_unassigned.append(x['Id'])    
 
 # ============================Табличка======================================================
 
@@ -76,7 +94,16 @@ worksheet = workbook.add_worksheet() # Создание таблицы
 
 for i in range(len(list_array)): # Заполнение таблицы с помощью двумерного листа
     for j in range(len(list_array[0])):
-        worksheet.write(i,j,list_array[i][j])        
+        worksheet.write(i,j,list_array[i][j]) 
+
+max_range = len(list_array)+1 # Таблица для unassigned тасков
+worksheet.write(max_range, 0, 'Unassigned таски')
+worksheet.write(max_range, 1, "Tasks' Id")
+max_range += 1
+for i in range(len(tasks_unassigned)):
+    worksheet.write(max_range+i,0,tasks_unassigned[i])
+    worksheet.write(max_range+i,1,id_unassigned[i])
+
 
 workbook.close() # Сохраняем файл
 

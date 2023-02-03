@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f16bac9b-11a2-44ba-9cd2-8ec4ff8a9dad</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>tfs_generate.py</StartupFile>
+    <StartupFile>tfs_excel.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
