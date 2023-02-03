@@ -10,8 +10,8 @@ pat = "icct64e7fzwbpe2fvbo52jq3nsj7c34rdqgp32h7j74ye7ox5jhq" # Ключ дост
 
 client = TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI",pat=pat) # Соединение с тфс
 
-custom_start = '01-01-2023' # Дата начала
-custom_end = '31-01-2023' # Дата конца
+custom_start = '01-12-2022' # Дата начала
+custom_end = '30-12-2022' # Дата конца
 # AND [System.AssignedTo] <> ' '
 # Запрос 
 query = """SELECT [System.AssignedTo], [Tags]
