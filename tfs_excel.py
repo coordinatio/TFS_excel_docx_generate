@@ -1,5 +1,3 @@
-from asyncio import tasks
-from asyncio.base_tasks import _task_get_stack
 from itertools import count
 from typing import ItemsView
 from tfs import TFSAPI
