@@ -1,17 +1,28 @@
-from itertools import count
-from typing import ItemsView
+#!/usr/bin/python3
 from tfs import TFSAPI
 import xlsxwriter
 import re
+import argparse
+import datetime
+import subprocess
+import sys
+ 
+parser = argparse.ArgumentParser()
+parser.add_argument('--pat', default="icct64e7fzwbpe2fvbo52jq3nsj7c34rdqgp32h7j74ye7ox5jhq" )
+parser.add_argument('--from',
+                    type=lambda d: datetime.datetime.strptime(d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
+                    help='dd-mm-YYYY', required=True)
+parser.add_argument('--to',
+                    type=lambda d: datetime.datetime.strptime(d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
+                    help='dd-mm-YYYY', required=True)
+parser.add_argument("--out", default="time_report.xlsx", help="File to put results into")
+parser.add_argument("--open", action='store_true', default=False, help="Tells if to open the resulting file immediately after creation")
+args = parser.parse_args()
 
+client = TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI", pat=args.pat) # Соединение с тфс
 
-
-pat = "icct64e7fzwbpe2fvbo52jq3nsj7c34rdqgp32h7j74ye7ox5jhq" # Ключ доступа
-
-client = TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI",pat=pat) # Соединение с тфс
-
-custom_start = '01-12-2022' # Дата начала
-custom_end = '30-12-2022' # Дата конца
+custom_start = vars(args)["from"]
+custom_end = vars(args)["to"]
 # AND [System.AssignedTo] <> ' '
 # Запрос 
 query = """SELECT [System.AssignedTo], [Tags]
@@ -87,7 +98,7 @@ for i in range(1, len(list_array)): # Перезапись в процентно
         else:
             list_array[i][j] = ' '
 
-workbook = xlsxwriter.Workbook('Time_Management.xlsx') # Создание excel файла
+workbook = xlsxwriter.Workbook(args.out) # Создание excel файла
 worksheet = workbook.add_worksheet() # Создание таблицы
 
 for i in range(len(list_array)): # Заполнение таблицы с помощью двумерного листа
@@ -102,11 +113,10 @@ for i in range(len(tasks_unassigned)):
     worksheet.write(max_range+i,0,tasks_unassigned[i])
     worksheet.write(max_range+i,1,id_unassigned[i])
 
-
 workbook.close() # Сохраняем файл
 
-    
-
-
-
-
+if (args.open):
+    if sys.platform in ("linux", "linux2"):
+        subprocess.call(["xdg-open", args.out])
+    else:
+        print("--open works only on linux yet")
