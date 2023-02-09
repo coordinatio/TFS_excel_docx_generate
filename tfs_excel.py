@@ -27,7 +27,7 @@ custom_end = vars(args)["to"]
 # Запрос 
 query = """SELECT [System.AssignedTo], [Tags]
 FROM workitems
-WHERE [System.State] = 'Done'  AND [System.WorkItemType] = 'Task' AND ([Created Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
+WHERE [System.State] = 'Done' AND [System.WorkItemType] = 'Task' AND ([Closed Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
 ORDER BY [System.AssignedTo]
 """
 
@@ -46,7 +46,7 @@ def get_tag_from_parent(item): # Поиск тега таска через ро�
                 return item.parent['Tags']
             else: return None
         else:
-            get_tag_from_parent(item.parent)
+            return get_tag_from_parent(item.parent)
     else: return None
 
 for x in workitems: # Выборка данных
