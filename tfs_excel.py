@@ -38,6 +38,9 @@ members = [] # Лист прикрепленных к задаче людей
 tags = [] # Лист тегов
 tasks_unassigned = [] # Лист unassigned тасков
 id_unassigned = [] # Лист id unassigned тасков
+tags_error = []
+id_error = []
+
 
 def get_tag_from_parent(item): # Поиск тега таска через родителей
     if (item.parent):
@@ -53,7 +56,10 @@ for x in workitems: # Выборка данных
     if (x['AssignedTo']):
         members.append(x['AssignedTo'][:x['AssignedTo'].find(' <')]) 
         if (x['Tags']):
-            tags.append(x['Tags'])
+            if(re.fullmatch(r'^[A-Z]+_\d+\.\d+\.\d+$', x['Tags'])):
+                tags.append(x['Tags'])
+            else:                
+                tags.append(get_tag_from_parent(x))
         else:
             tags.append(get_tag_from_parent(x))
     else:
@@ -108,10 +114,16 @@ for i in range(len(list_array)): # Заполнение таблицы с пом
 max_range = len(list_array)+1 # Таблица для unassigned тасков
 worksheet.write(max_range, 0, 'Unassigned таски')
 worksheet.write(max_range, 1, "Tasks' Id")
+worksheet.write(max_range, 3, 'Error Tags')
+worksheet.write(max_range, 4, "Tags' Id")
 max_range += 1
 for i in range(len(tasks_unassigned)):
     worksheet.write(max_range+i,0,tasks_unassigned[i])
     worksheet.write(max_range+i,1,id_unassigned[i])
+
+for i in range(len(tags_error)):
+    worksheet.write(max_range+i,3,tags_error[i])
+    worksheet.write(max_range+i,4,id_error[i])
 
 workbook.close() # Сохраняем файл
 
