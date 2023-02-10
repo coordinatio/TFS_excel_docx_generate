@@ -19,20 +19,36 @@ parser.add_argument("--out", default="time_report.xlsx", help="File to put resul
 parser.add_argument("--open", action='store_true', default=False, help="Tells if to open the resulting file immediately after creation")
 args = parser.parse_args()
 
-client = TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI", pat=args.pat) # Соединение с тфс
+ #vars(args)["from"]
+ #vars(args)["to"]
+def get_items_from_project(project_name, date_start, date_end):
 
-custom_start = vars(args)["from"]
-custom_end = vars(args)["to"]
-# AND [System.AssignedTo] <> ' '
-# Запрос 
-query = """SELECT [System.AssignedTo], [Tags]
-FROM workitems
-WHERE [System.State] = 'Done' AND [System.WorkItemType] = 'Task' AND ([Closed Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
-ORDER BY [System.AssignedTo]
-"""
+    client = TFSAPI("https://tfs.content.ai/", project=project_name, pat=args.pat) # Соединение с тфс
+    # Запрос
+    if (project_name == 'HQ/ContentAI'): 
+        query = """SELECT [System.AssignedTo], [Tags]
+    FROM workitems
+    WHERE [System.State] = 'Done' AND [System.WorkItemType] = 'Task' AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
+    ORDER BY [System.AssignedTo]
+    """
+    elif (project_name == 'NLC/AIS'):
+        query = """SELECT [System.AssignedTo], [Tags]
+    FROM workitems
+    WHERE [System.State] = 'Closed' AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'User Story') AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
+    ORDER BY [System.AssignedTo]
+    """
+    elif (project_name == 'Lingvo/Lingvo X6'):
+        query = """SELECT [System.AssignedTo], [Tags]
+    FROM workitems
+    WHERE [System.State] = 'Closed' AND [System.WorkItemType] = 'Bug' AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
+    ORDER BY [System.AssignedTo]
+    """
+    wiql = client.run_wiql(query)
+    return wiql
 
-wiql = client.run_wiql(query)
-workitems = wiql.workitems # Получаем объекты из запроса
+workitems = get_items_from_project("HQ/ContentAI", vars(args)["from"], vars(args)["to"]).workitems # Получаем объекты из запроса
+workitems += get_items_from_project("NLC/AIS", vars(args)["from"], vars(args)["to"]).workitems
+workitems += get_items_from_project("Lingvo/Lingvo X6", vars(args)["from"], vars(args)["to"]).workitems
 
 members = [] # Лист прикрепленных к задаче людей
 tags = [] # Лист тегов
@@ -53,18 +69,19 @@ def get_tag_from_parent(item): # Поиск тега таска через ро�
     else: return None
 
 for x in workitems: # Выборка данных
-    if (x['AssignedTo']):
+    if (x['AssignedTo']):        
         members.append(x['AssignedTo'][:x['AssignedTo'].find(' <')]) 
         if (x['Tags']):
             if(re.fullmatch(r'^[A-Z]+_\d+\.\d+\.\d+$', x['Tags'])):
                 tags.append(x['Tags'])
             else:                
-                tags.append(get_tag_from_parent(x))
+                tags.append(get_tag_from_parent(x))                
         else:
-            tags.append(get_tag_from_parent(x))
+            tags.append(get_tag_from_parent(x))            
     else:
         tasks_unassigned.append(x['Title'])
         id_unassigned.append(x['Id'])    
+        
 
 # ============================Табличка======================================================
 
@@ -104,12 +121,37 @@ for i in range(1, len(list_array)): # Перезапись в процентно
         else:
             list_array[i][j] = ' '
 
+list_array[0][0] = ' '
+list_array.sort(key = lambda x: x[0])
+# https://tfs.content.ai/NLC/AIS/_workitems/edit/19611
+
 workbook = xlsxwriter.Workbook(args.out) # Создание excel файла
 worksheet = workbook.add_worksheet() # Создание таблицы
+
+def get_link_to_tfs(name, tag):
+    result_string = ''
+    if tag == 'Default':
+        tag = None
+
+    for x in workitems:        
+        if (x['AssignedTo'][:x['AssignedTo'].find(' <')] == name):
+            if (x['Tags']):                
+                if (tag == x['Tags'] or tag == get_tag_from_parent(x)):                    
+                    result_string += x._links['html']['href'] +'\n'
+            else:
+                if (tag == get_tag_from_parent(x)):                    
+                    result_string += x._links['html']['href'] +'\n'
+    return result_string
+
 
 for i in range(len(list_array)): # Заполнение таблицы с помощью двумерного листа
     for j in range(len(list_array[0])):
         worksheet.write(i,j,list_array[i][j]) 
+
+for i in range(1, len(list_array)): 
+    for j in range(1, len(list_array[0])-1):
+        if list_array[i][j] != ' ':
+            worksheet.write_comment(i,j, get_link_to_tfs(list_array[i][0], list_array[0][j]), {'width': 200, 'height': 200})
 
 max_range = len(list_array)+1 # Таблица для unassigned тасков
 worksheet.write(max_range, 0, 'Unassigned таски')

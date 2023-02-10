@@ -18,13 +18,13 @@ tag = 'CRE_12_R6u1' # Тег // query_1 - запрос без тега, query_ta
 
 query_1 = """SELECT [System.Title], [Created Date], [Closed Date], [System.AssignedTo], [Tags]
 FROM workitems
-WHERE [System.State] = 'Done' AND [System.AssignedTo] <> ' '  AND [System.WorkItemType] = 'Task' AND ([Created Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
+WHERE [System.State] = 'Done' AND [System.AssignedTo] <> ' '  AND [System.WorkItemType] = 'Task' AND ([Closed Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ')
 ORDER BY [System.AssignedTo]
 """
 
 query_tags = """SELECT [System.Title], [Created Date], [Closed Date], [System.AssignedTo], [Tags]
 FROM workitems
-WHERE [System.State] = 'Done' AND ([Created Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ') AND [Tags] Contains ' """ + tag + """ '
+WHERE [System.State] = 'Done' AND ([Closed Date] >= ' """ + custom_start + """ ' AND [Closed Date] <= ' """ + custom_end + """ ') AND [Tags] Contains ' """ + tag + """ '
 ORDER BY [System.AssignedTo]
 """
 
