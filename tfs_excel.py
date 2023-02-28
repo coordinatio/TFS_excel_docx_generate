@@ -8,7 +8,7 @@ import subprocess
 import sys
  
 parser = argparse.ArgumentParser()
-parser.add_argument('--pat', default="icct64e7fzwbpe2fvbo52jq3nsj7c34rdqgp32h7j74ye7ox5jhq" )
+parser.add_argument('--pat', default="fmzzuj6opqc2yv2zspw2uoiz73k5iwa5q2v25nzcwyztg5oqtw3q" )
 parser.add_argument('--from',
                     type=lambda d: datetime.datetime.strptime(d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
                     help='dd-mm-YYYY', required=True)
@@ -34,21 +34,23 @@ def get_items_from_project(project_name, date_start, date_end):
     elif (project_name == 'NLC/AIS'):
         query = """SELECT [System.AssignedTo], [Tags]
     FROM workitems
-    WHERE [System.State] = 'Closed' AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'User Story') AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
+    WHERE [System.State] = 'Closed' AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Task') AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
     ORDER BY [System.AssignedTo]
     """
     elif (project_name == 'Lingvo/Lingvo X6'):
         query = """SELECT [System.AssignedTo], [Tags]
     FROM workitems
-    WHERE [System.State] = 'Closed' AND [System.WorkItemType] = 'Bug' AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
+    WHERE [System.State] = 'Closed' AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')  AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
     ORDER BY [System.AssignedTo]
     """
     wiql = client.run_wiql(query)
     return wiql
 
-workitems = get_items_from_project("HQ/ContentAI", vars(args)["from"], vars(args)["to"]).workitems # Получаем объекты из запроса
-workitems += get_items_from_project("NLC/AIS", vars(args)["from"], vars(args)["to"]).workitems
-workitems += get_items_from_project("Lingvo/Lingvo X6", vars(args)["from"], vars(args)["to"]).workitems
+
+workitems = get_items_from_project("HQ/ContentAI", vars(args)["from"],vars(args)["to"]).workitems # Получаем объекты из запроса
+workitems_1 = get_items_from_project("NLC/AIS", vars(args)["from"],vars(args)["to"]).workitems
+workitems_2 = get_items_from_project("Lingvo/Lingvo X6", vars(args)["from"],vars(args)["to"]).workitems
+workitems_all = workitems + workitems_1 + workitems_2
 
 members = [] # Лист прикрепленных к задаче людей
 tags = [] # Лист тегов
@@ -56,6 +58,8 @@ tasks_unassigned = [] # Лист unassigned тасков
 id_unassigned = [] # Лист id unassigned тасков
 tags_error = []
 id_error = []
+testers_names = []
+testers_tags = []
 
 
 def get_tag_from_parent(item): # Поиск тега таска через родителей
@@ -69,19 +73,44 @@ def get_tag_from_parent(item): # Поиск тега таска через ро�
     else: return None
 
 for x in workitems: # Выборка данных
+    
     if (x['AssignedTo']):        
         members.append(x['AssignedTo'][:x['AssignedTo'].find(' <')]) 
         if (x['Tags']):
-            if(re.fullmatch(r'^[A-Z]+_\d+\.\d+\.\d+$', x['Tags'])):
-                tags.append(x['Tags'])
-            else:                
-                tags.append(get_tag_from_parent(x))                
+            if(re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']) != None):
+                testers_names.append(re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']).group(0).replace('_',' ').replace('@',''))
+                if(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']) != None):
+                    tags.append(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']).group(0))
+                    testers_tags.append(tags[-1])
+                else:                
+                    tags.append(get_tag_from_parent(x))
+                    testers_tags.append(tags[-1])
+            else:
+                if(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']) != None):
+                    tags.append(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']).group(0))                   
+                else:                
+                    tags.append(get_tag_from_parent(x))   
         else:
             tags.append(get_tag_from_parent(x))            
     else:
         tasks_unassigned.append(x['Title'])
-        id_unassigned.append(x['Id'])    
+        id_unassigned.append(x['Id'])
         
+members += testers_names
+tags += testers_tags
+        
+def sort_items_by_project(items, tag_sign):
+    for item in items:
+        if (item['AssignedTo']):        
+            members.append(item['AssignedTo'][:item['AssignedTo'].find(' <')]) 
+            if (re.search(r'\d+\.\d+\.\d+', item['system.iterationpath']) != None):
+                tags.append(tag_sign+'_'+re.search(r'\d+\.\d+\.\d+', item['system.iterationpath']).group(0))
+        else:
+            tasks_unassigned.append(item['Title'])
+            id_unassigned.append(item['Id'])   
+
+sort_items_by_project(workitems_1, 'AIS')
+sort_items_by_project(workitems_2, 'LX6')
 
 # ============================Табличка======================================================
 
@@ -123,7 +152,6 @@ for i in range(1, len(list_array)): # Перезапись в процентно
 
 list_array[0][0] = ' '
 list_array.sort(key = lambda x: x[0])
-# https://tfs.content.ai/NLC/AIS/_workitems/edit/19611
 
 workbook = xlsxwriter.Workbook(args.out) # Создание excel файла
 worksheet = workbook.add_worksheet() # Создание таблицы
@@ -133,14 +161,23 @@ def get_link_to_tfs(name, tag):
     if tag == 'Default':
         tag = None
 
-    for x in workitems:        
+    for x in workitems_all:        
         if (x['AssignedTo'][:x['AssignedTo'].find(' <')] == name):
-            if (x['Tags']):                
+            if (tag != None and tag.find("LX6") != -1 and x['TeamProject'] == 'Lingvo X6' and (re.search(r'\d+\.\d+\.\d+', tag).group(0) == re.search(r'\d+\.\d+\.\d+', x['system.iterationpath']).group(0))):
+                result_string += x._links['html']['href'] +'\n'
+            elif (tag != None and tag.find("AIS") != -1 and x['TeamProject'] == 'AIS' and (re.search(r'\d+\.\d+\.\d+', tag).group(0) == re.search(r'\d+\.\d+\.\d+', x['system.iterationpath']).group(0))):
+                result_string += x._links['html']['href'] +'\n'
+            elif (x['Tags']):
                 if (tag == x['Tags'] or tag == get_tag_from_parent(x)):                    
                     result_string += x._links['html']['href'] +'\n'
             else:
                 if (tag == get_tag_from_parent(x)):                    
                     result_string += x._links['html']['href'] +'\n'
+        elif (x['Tags'] and re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']) != None and re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']).group(0).replace('_',' ').replace('@','') == name):
+            if(tag != None and (x['Tags'].find(tag) != -1 or tag == get_tag_from_parent(x))):
+                result_string += x._links['html']['href'] +'\n'
+            
+
     return result_string
 
 
