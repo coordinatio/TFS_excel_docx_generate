@@ -118,6 +118,9 @@ class HandlerIS(Handler):
 
 
 class HandlerLingvo(Handler):
+    def __init__(self, pat, date_from, date_to) -> None:
+        self.project = "Lingvo/Lingvo X6"
+        super().__init__(pat, date_from, date_to)
     def retrieve(self, pat, date_from, date_to):
         q = """SELECT [System.AssignedTo], [Tags]
         FROM workitems
@@ -128,12 +131,20 @@ class HandlerLingvo(Handler):
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
         """ % (date_from, date_to)
-        return TFSAPI("https://tfs.content.ai/", project="Lingvo/Lingvo X6", pat=pat).run_wiql(q).workitems
+        return TFSAPI("https://tfs.content.ai/", project=self.project, pat=pat).run_wiql(q).workitems
 
     def get_release(self, workitem):
-        m = re.search(r'.+\\(\d+\.\d+\.\d+)', workitem['system.iterationpath'])
+        spec = {'Lingvo X6': 'LX6',
+                'lingvo.mobile.iOS' : 'LMI',
+                'lingvo.mobile.android' : 'LMA',
+                'lingvo.mac' : 'LFM',
+                'lingvo.mobile.services' : 'LLB'}
+        m = re.search(r'(.+?)\\(.+\\)?(\d+\.\d+\.\d+)', workitem['system.iterationpath'])
         if m:
-            return "LX6_%s" % str(m.group(1))
+            prj = m.group(1)
+            ver = m.group(3)
+            if prj in spec:
+                return '%s_%s' % (spec[prj], ver)
         return ''
 
 
