@@ -118,9 +118,6 @@ class HandlerIS(Handler):
 
 
 class HandlerLingvo(Handler):
-    def __init__(self, pat, date_from, date_to) -> None:
-        self.project = "Lingvo/Lingvo X6"
-        super().__init__(pat, date_from, date_to)
     def retrieve(self, pat, date_from, date_to):
         q = """SELECT [System.AssignedTo], [Tags]
         FROM workitems
@@ -131,20 +128,33 @@ class HandlerLingvo(Handler):
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
         """ % (date_from, date_to)
-        return TFSAPI("https://tfs.content.ai/", project=self.project, pat=pat).run_wiql(q).workitems
+        w = []
+        for p in ('Lingvo', 'LingvoLive'):
+            w += TFSAPI("https://tfs.content.ai/", project=p,
+                        pat=pat).run_wiql(q).workitems
+        return w
 
     def get_release(self, workitem):
-        spec = {'Lingvo X6': 'LX6',
-                'lingvo.mobile.iOS' : 'LMI',
-                'lingvo.mobile.android' : 'LMA',
-                'lingvo.mac' : 'LFM',
-                'lingvo.mobile.services' : 'LLB'}
-        m = re.search(r'(.+?)\\(.+\\)?(\d+\.\d+\.\d+)', workitem['system.iterationpath'])
+        spec_a = {'Lingvo X6': 'LX6',
+                  'lingvo.mobile.iOS': 'LMI',
+                  'lingvo.mobile.android': 'LMA',
+                  'lingvo.mac': 'LFM',
+                  'lingvo.live.ios': 'LLI'}
+        m = re.search(r'(.+?)\\(.+\\)?(\d+\.\d+(\.\d+)?)',
+                      workitem['system.iterationpath'])
         if m:
             prj = m.group(1)
             ver = m.group(3)
-            if prj in spec:
-                return '%s_%s' % (spec[prj], ver)
+            if prj in spec_a:
+                return '%s_%s' % (spec_a[prj], ver)
+        spec_b = {'lingvo.mobile.services': 'LLB',
+                  'lingvo.live.services': 'LLB',
+                  'lingvo.live.web': 'LLWW'}
+        m = re.search(r'(.+?)\\.*', workitem['system.iterationpath'])
+        if m:
+            prj = m.group(1)
+            if prj in spec_b:
+                return spec_b[prj]
         return ''
 
 
