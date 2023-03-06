@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from typing import Dict, List, OrderedDict
 from tfs import TFSAPI
 import xlsxwriter
 import re
@@ -6,208 +7,416 @@ import argparse
 import datetime
 import subprocess
 import sys
- 
-parser = argparse.ArgumentParser()
-parser.add_argument('--pat', default="fmzzuj6opqc2yv2zspw2uoiz73k5iwa5q2v25nzcwyztg5oqtw3q" )
-parser.add_argument('--from',
-                    type=lambda d: datetime.datetime.strptime(d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
-                    help='dd-mm-YYYY', required=True)
-parser.add_argument('--to',
-                    type=lambda d: datetime.datetime.strptime(d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
-                    help='dd-mm-YYYY', required=True)
-parser.add_argument("--out", default="time_report.xlsx", help="File to put results into")
-parser.add_argument("--open", action='store_true', default=False, help="Tells if to open the resulting file immediately after creation")
-args = parser.parse_args()
-
- #vars(args)["from"]
- #vars(args)["to"]
-def get_items_from_project(project_name, date_start, date_end):
-
-    client = TFSAPI("https://tfs.content.ai/", project=project_name, pat=args.pat) # Соединение с тфс
-    # Запрос
-    if (project_name == 'HQ/ContentAI'): 
-        query = """SELECT [System.AssignedTo], [Tags]
-    FROM workitems
-    WHERE [System.State] = 'Done' AND [System.WorkItemType] = 'Task' AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
-    ORDER BY [System.AssignedTo]
-    """
-    elif (project_name == 'NLC/AIS'):
-        query = """SELECT [System.AssignedTo], [Tags]
-    FROM workitems
-    WHERE [System.State] = 'Closed' AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Task') AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
-    ORDER BY [System.AssignedTo]
-    """
-    elif (project_name == 'Lingvo/Lingvo X6'):
-        query = """SELECT [System.AssignedTo], [Tags]
-    FROM workitems
-    WHERE [System.State] = 'Closed' AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')  AND ([Closed Date] >= ' """ + date_start + """ ' AND [Closed Date] <= ' """ + date_end + """ ')
-    ORDER BY [System.AssignedTo]
-    """
-    wiql = client.run_wiql(query)
-    return wiql
+import unittest
 
 
-workitems = get_items_from_project("HQ/ContentAI", vars(args)["from"],vars(args)["to"]).workitems # Получаем объекты из запроса
-workitems_1 = get_items_from_project("NLC/AIS", vars(args)["from"],vars(args)["to"]).workitems
-workitems_2 = get_items_from_project("Lingvo/Lingvo X6", vars(args)["from"],vars(args)["to"]).workitems
-workitems_all = workitems + workitems_1 + workitems_2
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pat',
+                        default="fmzzuj6opqc2yv2zspw2uoiz73k5iwa5q2v25nzcwyztg5oqtw3q")
+    parser.add_argument('--from',
+                        type=lambda d: datetime.datetime.strptime(
+                            d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
+                        help='dd-mm-YYYY', required=True)
+    parser.add_argument('--to',
+                        type=lambda d: datetime.datetime.strptime(
+                            d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
+                        help='dd-mm-YYYY', required=True)
+    parser.add_argument("--out", default="time_report.xlsx",
+                        help="File to put results into")
+    parser.add_argument("--open", action='store_true', default=False,
+                        help="Tells if to open the resulting file immediately after creation")
+    return parser.parse_args()
 
-members = [] # Лист прикрепленных к задаче людей
-tags = [] # Лист тегов
-tasks_unassigned = [] # Лист unassigned тасков
-id_unassigned = [] # Лист id unassigned тасков
-tags_error = []
-id_error = []
-testers_names = []
-testers_tags = []
+
+class Task:
+    def __init__(self, title, assignees, release, link) -> None:
+        self.title = title
+        self.assignees = assignees
+        self.release = release
+        self.link = link
+        self.broken = not self.title or not self.assignees
 
 
-def get_tag_from_parent(item): # Поиск тега таска через родителей
-    if (item.parent):
-        if (item.parent['Tags']):
-            if(re.fullmatch(r'^[A-Z]+_\d+\.\d+\.\d+$', item.parent['Tags'])):
-                return item.parent['Tags']
-            else: return None
-        else:
-            return get_tag_from_parent(item.parent)
-    else: return None
+class Handler():
+    def __init__(self, pat, date_from, date_to) -> None:
+        tasks = []
+        for w in self.retrieve(pat, date_from, date_to):
+            tasks.append(Task(self.get_title(w),
+                              self.get_assignees(w),
+                              self.get_release(w),
+                              self.get_link(w)))
+        self.workitems = tasks
 
-for x in workitems: # Выборка данных
-    
-    if (x['AssignedTo']):        
-        members.append(x['AssignedTo'][:x['AssignedTo'].find(' <')]) 
-        if (x['Tags']):
-            if(re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']) != None):
-                testers_names.append(re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']).group(0).replace('_',' ').replace('@',''))
-                if(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']) != None):
-                    tags.append(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']).group(0))
-                    testers_tags.append(tags[-1])
-                else:                
-                    tags.append(get_tag_from_parent(x))
-                    testers_tags.append(tags[-1])
+    def get_assignees(self, workitem):
+        assignees = []
+        if (workitem['AssignedTo']):
+            assignees.append(
+                str(workitem['AssignedTo'][:workitem['AssignedTo'].find(' <')]))
+        if workitem['Tags']:
+            m = re.search(r'[\@#]([А-Яа-яё]+[_ ][А-Яа-яё]+)', workitem['Tags'])
+            if m:
+                assignees.append(str(m.group(1).replace('_', ' ')))
+        return assignees
+
+    def retrieve(self, pat, date_from, date_to):
+        return []
+
+    def get_title(self, workitem):
+        return str(workitem['Title'])
+
+    def get_release(self, workitem):
+        pass
+
+    def get_link(self, workitem):
+        return str(workitem._links['html']['href'])
+
+
+class HandlerCai(Handler):
+    def retrieve(self, pat, date_from, date_to):
+        q = """SELECT [System.AssignedTo], [Tags]
+        FROM workitems
+        WHERE 
+            [System.State] = 'Done' 
+            AND [System.WorkItemType] = 'Task' 
+            AND ([Closed Date] >= '%s' AND [Closed Date] <= '%s')
+            AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
+        ORDER BY [System.AssignedTo]
+        """ % (date_from, date_to)
+        return TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI", pat=pat).run_wiql(q).workitems
+
+    def get_release(self, workitem):
+        w = workitem
+        while True:
+            if w['Tags']:
+                m = re.search(r'[A-Z]+_\d+\.\d+\.\d+', w['Tags'])
+                if m:
+                    return str(m.group(0))
+            if not w.parent:
+                return ''
+            w = w.parent
+
+
+class HandlerIS(Handler):
+    def retrieve(self, pat, date_from, date_to):
+        q = """SELECT [System.AssignedTo], [Tags]
+        FROM workitems
+        WHERE 
+            [System.State] = 'Closed' 
+            AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Task') 
+            AND ([Closed Date] >= '%s' AND [Closed Date] <= '%s')
+            AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
+        ORDER BY [System.AssignedTo]
+        """ % (date_from, date_to)
+        return TFSAPI("https://tfs.content.ai/", project="NLC/AIS", pat=pat).run_wiql(q).workitems
+
+    def get_release(self, workitem):
+        m = re.search(r'AIS\\(\d+\.\d+)', workitem['system.areapath'])
+        if m:
+            return "IS_%s" % str(m.group(1))
+        return ''
+
+
+class HandlerLingvo(Handler):
+    def retrieve(self, pat, date_from, date_to):
+        q = """SELECT [System.AssignedTo], [Tags]
+        FROM workitems
+        WHERE 
+            [System.State] = 'Closed' 
+            AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')  
+            AND ([Closed Date] >= '%s' AND [Closed Date] <= '%s')
+            AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
+        ORDER BY [System.AssignedTo]
+        """ % (date_from, date_to)
+        return TFSAPI("https://tfs.content.ai/", project="Lingvo/Lingvo X6", pat=pat).run_wiql(q).workitems
+
+    def get_release(self, workitem):
+        m = re.search(r'.+\\(\d+\.\d+\.\d+)', workitem['system.iterationpath'])
+        if m:
+            return "LX6_%s" % str(m.group(1))
+        return ''
+
+
+class Matrix:
+    class AssigneeInfo:
+        def __init__(self, releases_ever_known: set) -> None:
+            self.tasks_ttl = 0
+            self.releases = OrderedDict()
+            for r in releases_ever_known:
+                self.releases[r] = []
+            self.default = []  # here all not release related tasks go
+
+        def add_task(self, release: str, task: Task):
+            if release:
+                self.releases[release].append(task)
             else:
-                if(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']) != None):
-                    tags.append(re.search(r'[A-Z]+_\d+\.\d+\.\d+', x['Tags']).group(0))                   
-                else:                
-                    tags.append(get_tag_from_parent(x))   
+                self.default.append(task)
+            self.tasks_ttl += 1
+
+    def __init__(self, tasks: List):
+        self.releases_ever_known = {t.release for t in tasks if t.release}
+        self.rows = OrderedDict()
+        for t in tasks:
+            for a in t.assignees:
+                self.add_record(a, t.release, t)
+
+    def add_record(self, assignee: str, release: str, task: Task):
+        if assignee not in self.rows:
+            self.rows[assignee] = Matrix.AssigneeInfo(self.releases_ever_known)
+        self.rows[assignee].add_task(release, task)
+
+
+class MatrixPrinter:
+    def print(self, m: Matrix):
+        header = [x for x in sorted(m.releases_ever_known)]
+        col = 0
+        for x in [''] + header + ['DEFAULT']:
+            self.brush(col, 0, x)
+            col += 1
+        row = 0
+        for y in m.rows:
+            col = 0
+            row += 1
+            self.brush(col, row, y)
+            for x in header:
+                col += 1
+                self.brush_percent(col, row, len(
+                    m.rows[y].releases[x])/m.rows[y].tasks_ttl)
+                comment = ["%s: %s\n" % (t.title, t.link)
+                           for t in m.rows[y].releases[x]]
+                if comment:
+                    self.brush_comment(col, row, "\n".join(comment))
+            col += 1
+            self.brush_percent(col, row, len(
+                m.rows[y].default)/m.rows[y].tasks_ttl)
+            comment = ["%s: %s\n" % (t.title, t.link)
+                       for t in m.rows[y].default]
+            if comment:
+                self.brush_comment(col, row, "\n".join(comment))
+
+    def brush(self, col, row, x):
+        pass
+
+    def brush_percent(self, col, row, x):
+        self.brush(col, row, x)
+
+    def brush_comment(self, col, row, x):
+        pass
+
+
+class ExcelPrinter(MatrixPrinter):
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+
+    def __enter__(self):
+        self.book = xlsxwriter.Workbook(self.filename)
+        self.sheet = self.book.add_worksheet()
+        self.fmt_percent = self.book.add_format()
+        self.fmt_percent.set_num_format('0.00%')
+        self.fmt_gray = self.book.add_format({'font_color': '#eeeeee'})
+        self.sheet.conditional_format(0, 0, 999, 999, {'type':     'cell',
+                                                       'criteria': '=',
+                                                       'value':    0,
+                                                       'format':   self.fmt_gray})
+        return self
+
+    def __exit__(self, *args):
+        self.sheet.autofit()
+        self.sheet.freeze_panes(1, 1)
+        self.book.close()
+
+    def brush(self, col, row, x):
+        self.sheet.write(row, col, x)
+
+    def brush_percent(self, col, row, x):
+        self.sheet.write(row, col, x, self.fmt_percent)
+
+    def brush_comment(self, col, row, x):
+        self.sheet.write_comment(row, col, x)
+
+
+def main():
+    a = parse_args()
+
+    i = []
+    for x in (HandlerCai, HandlerIS, HandlerLingvo):
+        i += x(a.pat, vars(a)["from"], vars(a)["to"]).workitems
+
+    with ExcelPrinter(a.out) as p:
+        p.print(Matrix(i))
+
+    if (a.open):
+        if sys.platform in ("linux", "linux2"):
+            subprocess.call(["xdg-open", a.out])
         else:
-            tags.append(get_tag_from_parent(x))            
-    else:
-        tasks_unassigned.append(x['Title'])
-        id_unassigned.append(x['Id'])
-        
-members += testers_names
-tags += testers_tags
-        
-def sort_items_by_project(items, tag_sign):
-    for item in items:
-        if (item['AssignedTo']):        
-            members.append(item['AssignedTo'][:item['AssignedTo'].find(' <')]) 
-            if (re.search(r'\d+\.\d+\.\d+', item['system.iterationpath']) != None):
-                tags.append(tag_sign+'_'+re.search(r'\d+\.\d+\.\d+', item['system.iterationpath']).group(0))
-        else:
-            tasks_unassigned.append(item['Title'])
-            id_unassigned.append(item['Id'])   
-
-sort_items_by_project(workitems_1, 'AIS')
-sort_items_by_project(workitems_2, 'LX6')
-
-# ============================Табличка======================================================
-
-list_array = [[None]]  # Двумерный лист для заполнения
-dict_tags = {} # Словарь тегов
-dict_names = {} # Словарь имен
-
-for i in range(len(tags)): # Заполнение словаря тегов и первой строчки листа
-    if tags[i] not in list_array[0]:
-        dict_tags[tags[i]] = len(list_array[0])
-        list_array[0].append(tags[i])
-
-dict_tags['Default'] = len(list_array[0]) # Добавляем в словарь и лист значения Default для задач без тегов и Sum для проверки
-list_array[0].append('Default')
-dict_tags['Sum'] = len(list_array[0])
-list_array[0].append('Sum')
-
-for i in range(len(members)): # Заполнение словаря имен и первого столбца листа
-    if members[i] not in dict_names.keys():
-        dict_names[members[i]] = len(list_array)
-        list_array.append([members[i]])
-        list_array[-1].extend([0]*(len(list_array[0])-1))
-
-for i in range(len(members)): # Подсчет задач, к которым прикреплен конкретный человек
-    if (dict_names.get(members[i])):
-        if (dict_tags.get(tags[i])):
-            list_array[dict_names.get(members[i])][dict_tags.get(tags[i])] += 1
-            list_array[dict_names.get(members[i])][dict_tags.get('Sum')] += 1
-        else:
-            list_array[dict_names.get(members[i])][dict_tags.get('Default')] += 1
-            list_array[dict_names.get(members[i])][dict_tags.get('Sum')] += 1
-
-for i in range(1, len(list_array)): # Перезапись в процентной форме (0 значения заполняются ' ')
-    for j in range(1, len(list_array[0])):
-        if (list_array[i][j] > 0):
-            list_array[i][j] = str(round((list_array[i][j]/list_array[i][dict_tags.get('Sum')])*100, 2)) + '%'
-        else:
-            list_array[i][j] = ' '
-
-list_array[0][0] = ' '
-list_array.sort(key = lambda x: x[0])
-
-workbook = xlsxwriter.Workbook(args.out) # Создание excel файла
-worksheet = workbook.add_worksheet() # Создание таблицы
-
-def get_link_to_tfs(name, tag):
-    result_string = ''
-    if tag == 'Default':
-        tag = None
-
-    for x in workitems_all:        
-        if (x['AssignedTo'][:x['AssignedTo'].find(' <')] == name):
-            if (tag != None and tag.find("LX6") != -1 and x['TeamProject'] == 'Lingvo X6' and (re.search(r'\d+\.\d+\.\d+', tag).group(0) == re.search(r'\d+\.\d+\.\d+', x['system.iterationpath']).group(0))):
-                result_string += x._links['html']['href'] +'\n'
-            elif (tag != None and tag.find("AIS") != -1 and x['TeamProject'] == 'AIS' and (re.search(r'\d+\.\d+\.\d+', tag).group(0) == re.search(r'\d+\.\d+\.\d+', x['system.iterationpath']).group(0))):
-                result_string += x._links['html']['href'] +'\n'
-            elif (x['Tags']):
-                if (tag == x['Tags'] or tag == get_tag_from_parent(x)):                    
-                    result_string += x._links['html']['href'] +'\n'
-            else:
-                if (tag == get_tag_from_parent(x)):                    
-                    result_string += x._links['html']['href'] +'\n'
-        elif (x['Tags'] and re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']) != None and re.search(r'\@[А-Яа-яё]+[_ ][А-Яа-яё]+', x['Tags']).group(0).replace('_',' ').replace('@','') == name):
-            if(tag != None and (x['Tags'].find(tag) != -1 or tag == get_tag_from_parent(x))):
-                result_string += x._links['html']['href'] +'\n'
-            
-
-    return result_string
+            print("--open works only on linux yet")
 
 
-for i in range(len(list_array)): # Заполнение таблицы с помощью двумерного листа
-    for j in range(len(list_array[0])):
-        worksheet.write(i,j,list_array[i][j]) 
+if __name__ == "__main__":
+    main()
 
-for i in range(1, len(list_array)): 
-    for j in range(1, len(list_array[0])-1):
-        if list_array[i][j] != ' ':
-            worksheet.write_comment(i,j, get_link_to_tfs(list_array[i][0], list_array[0][j]), {'width': 200, 'height': 200})
 
-max_range = len(list_array)+1 # Таблица для unassigned тасков
-worksheet.write(max_range, 0, 'Unassigned таски')
-worksheet.write(max_range, 1, "Tasks' Id")
-worksheet.write(max_range, 3, 'Error Tags')
-worksheet.write(max_range, 4, "Tags' Id")
-max_range += 1
-for i in range(len(tasks_unassigned)):
-    worksheet.write(max_range+i,0,tasks_unassigned[i])
-    worksheet.write(max_range+i,1,id_unassigned[i])
+class MockWorkitem:
+    def __init__(self, d: Dict, link='') -> None:
+        self.parent = None
+        self.d = d
+        self._links = {'html': {'href': link}}
 
-for i in range(len(tags_error)):
-    worksheet.write(max_range+i,3,tags_error[i])
-    worksheet.write(max_range+i,4,id_error[i])
+    def __getitem__(self, key):
+        return self.d[key]
 
-workbook.close() # Сохраняем файл
 
-if (args.open):
-    if sys.platform in ("linux", "linux2"):
-        subprocess.call(["xdg-open", args.out])
-    else:
-        print("--open works only on linux yet")
+class TestAssigneeExtraction(unittest.TestCase):
+    def test_cai_happyday(self):
+        d = {'AssignedTo': 'Алексей Калюжный <CONTENT\\AKalyuzhny>',
+             'Tags': '@Федор_Симашев; CC_12.8.0',
+             'Title': 'Test title'}
+
+        class X(HandlerCai):
+            def retrieve(self, pat, date_from, date_to):
+                return [MockWorkitem(d)]
+        self.assertEqual(X('', '', '').workitems[0].assignees, [
+                         'Алексей Калюжный', 'Федор Симашев'])
+
+    def test_cai_no_tags(self):
+        d = {'AssignedTo': 'Алексей Калюжный <CONTENT\\AKalyuzhny>',
+             'Tags': None,
+             'Title': 'Test title'}
+
+        class X(HandlerCai):
+            def retrieve(self, pat, date_from, date_to):
+                return [MockWorkitem(d)]
+        self.assertEqual(X('', '', '').workitems[0].assignees, [
+                         'Алексей Калюжный'])
+
+    def test_cai_hashtag(self):
+        d = {'AssignedTo': 'Алексей Калюжный <CONTENT\\AKalyuzhny>',
+             'Tags': '#Федор_Симашев; CC_12.8.0',
+             'Title': 'Test title'}
+
+        class X(HandlerCai):
+            def retrieve(self, pat, date_from, date_to):
+                return [MockWorkitem(d)]
+        self.assertEqual(X('', '', '').workitems[0].assignees, [
+                         'Алексей Калюжный', 'Федор Симашев'])
+
+
+class TestReleaseExtraction(unittest.TestCase):
+    def test_cai_happyday(self):
+        class X(HandlerCai):
+            def retrieve(self, pat, date_from, date_to):
+                d = {'AssignedTo': None,
+                     'Tags': '@Федор_Симашев; Garbage',
+                     'Title': 'Test title'}
+                w = MockWorkitem(d)
+                w.parent = MockWorkitem(
+                    {'AssignedTo': '', 'Tags': 'CC_12.8.0', 'Title': 'T'})
+                return [w]
+        self.assertEqual('CC_12.8.0', X('', '', '').workitems[0].release)
+
+    def test_cai_no_tags(self):
+        class X(HandlerCai):
+            def retrieve(self, pat, date_from, date_to):
+                d = {'AssignedTo': None,
+                     'Tags': None,
+                     'Title': 'Test title'}
+                w = MockWorkitem(d)
+                w.parent = MockWorkitem(
+                    {'AssignedTo': '', 'Tags': 'CC_12.8.0', 'Title': 'T'})
+                return [w]
+        self.assertEqual('CC_12.8.0', X('', '', '').workitems[0].release)
+
+    def test_is_happyday(self):
+        class X(HandlerIS):
+            def retrieve(self, pat, date_from, date_to):
+                d = {'AssignedTo': None,
+                     'Tags': '@Федор_Симашев; Garbage',
+                     'Title': 'Test title',
+                     'system.areapath': 'AIS\\5.2'}
+                return [MockWorkitem(d)]
+        self.assertEqual('IS_5.2', X('', '', '').workitems[0].release)
+
+    def test_lx6_happyday(self):
+        class X(HandlerLingvo):
+            def retrieve(self, pat, date_from, date_to):
+                d = {'AssignedTo': None,
+                     'Tags': '@Федор_Симашев; Garbage',
+                     'Title': 'Test title',
+                     'system.iterationpath': 'Lingvo X6\\16.3.1'}
+                return [MockWorkitem(d)]
+        self.assertEqual('LX6_16.3.1', X('', '', '').workitems[0].release)
+
+
+class TestMatrix(unittest.TestCase):
+    def test_happyday(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        m = Matrix([t1, t2])
+        self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
+        self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
+        self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
+
+
+class TestMatrixPrinter(unittest.TestCase):
+
+    class TestPrinter(MatrixPrinter):
+        def __init__(self) -> None:
+            self.paper = [['']]
+            self.paper_comments = [['']]
+
+        def brush(self, col, row, x):
+            TestMatrixPrinter.TestPrinter._print(self.paper, col, row, x)
+
+        def brush_comment(self, col, row, x):
+            TestMatrixPrinter.TestPrinter._print(
+                self.paper_comments, col, row, x)
+
+        @staticmethod
+        def _print(p, col, row, x):
+            if len(p) < col + 1:
+                p += [[''] for x in range(col + 1 - len(p))]
+            for i, l in enumerate(p):  # extend all rows
+                if len(l) < row + 1:
+                    p[i] += ['' for x in range(row + 1 - len(l))]
+            p[col][row] = x
+
+        # nicely print contents into string
+        def __str__(self) -> str:
+            out = ''
+            for row in range(len(self.paper[0])):
+                for col in range(len(self.paper)):
+                    out += "%s, " % self.paper[col][row]
+                out += '\n'
+            return out
+
+    def test_sheet(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2]))
+        out = [['', 'Petr', 'Foma'],
+               ['FTW_13.3.7', 0.5, 0.0],
+               ['OMG_13.3.8', 0.5, 1.0],
+               ['DEFAULT', 0.0, 0.0]]
+        for i, col in enumerate(l.paper):
+            self.assertListEqual(out[i], col)
+
+    def test_comments(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2]))
+        out = [['', '',              ''],
+               ['', 'A: http://A\n', ''],
+               ['', 'B: http://B\n', 'B: http://B\n']]
+        for i, col in enumerate(l.paper_comments):
+            self.assertListEqual(out[i], col)
+
+    def test_excel_printer(self):
+        t1 = Task('Task 1 with very very long description like you can find in real life',
+                  ['Petr'], 'FTW_13.3.7', 'http://task1/adsfakjhdslfkjahdlskfjhaldsfhadf/adlskfj')
+        t2 = Task('Task 2', ['Sheph', 'Petr'], 'OMG_13.3.8', 'http://task2')
+        t3 = Task('Task 3 with very very long description like you can find in real life',
+                  ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
+        with ExcelPrinter('test_excel_printer.xlsx') as printer:
+            printer.print(Matrix([t1, t2, t3]))
