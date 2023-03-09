@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from json import JSONDecoder, JSONEncoder
 from typing import Dict, List, OrderedDict
 from tfs import TFSAPI
 import xlsxwriter
@@ -158,6 +159,16 @@ class HandlerLingvo(Handler):
         return ''
 
 
+class NameNormalizer:
+    def __init__(self, json = '') -> None:
+        self.dict = JSONDecoder().decode(json)
+
+    def normalize(self, s : str) -> str:
+        if s in self.dict:
+            return self.dict[s]
+        return s
+
+
 class Matrix:
     class AssigneeInfo:
         def __init__(self, releases_ever_known: set) -> None:
@@ -174,17 +185,19 @@ class Matrix:
                 self.default.append(task)
             self.tasks_ttl += 1
 
-    def __init__(self, tasks: List):
+    def __init__(self, tasks: List, name_norm_json = ''):
         self.releases_ever_known = {t.release for t in tasks if t.release}
+        self.nn = NameNormalizer(name_norm_json)
         self.rows = OrderedDict()
         for t in tasks:
             for a in t.assignees:
                 self.add_record(a, t.release, t)
 
     def add_record(self, assignee: str, release: str, task: Task):
-        if assignee not in self.rows:
-            self.rows[assignee] = Matrix.AssigneeInfo(self.releases_ever_known)
-        self.rows[assignee].add_task(release, task)
+        a = self.nn.normalize(assignee)
+        if a not in self.rows:
+            self.rows[a] = Matrix.AssigneeInfo(self.releases_ever_known)
+        self.rows[a].add_task(release, task)
 
 
 class MatrixPrinter:
@@ -441,3 +454,13 @@ class TestMatrixPrinter(unittest.TestCase):
                   ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
         with ExcelPrinter('test_excel_printer.xlsx') as printer:
             printer.print(Matrix([t1, t2, t3]))
+
+
+class TestNameFilter(unittest.TestCase):
+    def test_filtration(self):
+        src = ['a', 'b']
+        nf = NameNormalizer('{"a" : "1", "b" : "2"}')
+        dst = [nf.normalize(x) for x in src]
+        self.assertListEqual(['1', '2'], dst)
+
+
