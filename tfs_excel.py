@@ -2,6 +2,7 @@
 from json import JSONDecoder, JSONEncoder
 from typing import Dict, List, OrderedDict
 from tfs import TFSAPI
+from pathlib import Path
 import xlsxwriter
 import re
 import argparse
@@ -27,6 +28,9 @@ def parse_args():
                         help="File to put results into")
     parser.add_argument("--open", action='store_true', default=False,
                         help="Tells if to open the resulting file immediately after creation")
+    parser.add_argument('--namenorm_path', type=Path,
+                        default=Path(__file__).absolute().parent / 'name_filter.json',
+                        help="Path to the file containing json with name pairs")
     return parser.parse_args()
 
 
@@ -161,7 +165,9 @@ class HandlerLingvo(Handler):
 
 class NameNormalizer:
     def __init__(self, json = '') -> None:
-        self.dict = JSONDecoder().decode(json)
+        self.dict = dict()
+        if json:
+            self.dict = JSONDecoder().decode(json)
 
     def normalize(self, s : str) -> str:
         if s in self.dict:
@@ -277,7 +283,9 @@ def main():
         i += x(a.pat, vars(a)["from"], vars(a)["to"]).workitems
 
     with ExcelPrinter(a.out) as p:
-        p.print(Matrix(i))
+        if a.namenorm_path.is_file():
+            with a.namenorm_path.open('r') as f:
+                p.print(Matrix(i, f.read()))
 
     if (a.open):
         if sys.platform in ("linux", "linux2"):
@@ -387,6 +395,15 @@ class TestMatrix(unittest.TestCase):
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         m = Matrix([t1, t2])
         self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
+        self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
+        self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
+
+    def test_name_normalization(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
+        m = Matrix([t1, t2, t3], '{"Ptr" : "Petr", "x" : "y"}')
+        self.assertEqual(m.rows['Petr'].tasks_ttl, 3)
         self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
         self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
 

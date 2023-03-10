@@ -1,3 +1,4 @@
 ﻿.vs/*
 *.xlsx
 __pycache__/*
+.cmd
