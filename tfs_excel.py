@@ -118,20 +118,23 @@ class HandlerCai(Handler):
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
         """ % (date_from, date_to)
+        w = TFSAPI("https://tfs.content.ai/",
+                   project="HQ/ContentAI", pat=pat).run_wiql(q1).workitems
+
         q2 = """SELECT [System.AssignedTo], [Tags]
         FROM workitems
         WHERE 
             [System.State] = 'Done' 
             AND [System.WorkItemType] = 'Product Backlog Item' 
-            AND [System.AreaPath] = 'ContentAI\\Документация'
+            AND [System.AreaPath] = '%s'
             AND ([Closed Date] >= '%s' AND [Closed Date] <= '%s')
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
-        """ % (date_from, date_to)
-        w = []
-        for q in [q1, q2]:
+        """
+        for a in ('ContentAI\\Документация', 'ContentAI\\Design'):
             w += TFSAPI("https://tfs.content.ai/",
-                        project="HQ/ContentAI", pat=pat).run_wiql(q).workitems
+                        project="HQ/ContentAI",
+                        pat=pat).run_wiql(q2 % (a, date_from, date_to)).workitems
         return w
 
     def get_release(self, workitem):
