@@ -14,7 +14,7 @@ import unittest
 
 class ArgsTypes:
     @staticmethod
-    def validate_names_reference(d : dict):
+    def validate_names_reference(d: dict):
         msg = 'Names json has incorrect structure, must be flat str->str pairs'
         if type(d) is not dict:
             raise argparse.ArgumentTypeError(msg)
@@ -30,15 +30,16 @@ class ArgsTypes:
         if not path_to_file:
             return j
         if not os.path.exists(path_to_file):
-            raise argparse.ArgumentTypeError("Names reference file %s does not exist" % path_to_file)
+            raise argparse.ArgumentTypeError(
+                "Names reference file %s does not exist" % path_to_file)
         try:
             with open(path_to_file, 'r') as f:
                 j = JSONDecoder().decode(f.read())
         except:
-            raise argparse.ArgumentTypeError("%s contains invalid json" % path_to_file)
+            raise argparse.ArgumentTypeError(
+                "%s contains invalid json" % path_to_file)
         ArgsTypes.validate_names_reference(j)
         return j
-
 
 
 def parse_args():
@@ -196,7 +197,7 @@ class NameNormalizer:
     def __init__(self, ref) -> None:
         self.dict = ref
 
-    def normalize(self, s : str) -> str:
+    def normalize(self, s: str) -> str:
         if s in self.dict:
             return self.dict[s]
         return s
@@ -218,7 +219,7 @@ class Matrix:
                 self.default.append(task)
             self.tasks_ttl += 1
 
-    def __init__(self, tasks: List, names_reference = {}):
+    def __init__(self, tasks: List, names_reference={}):
         self.releases_ever_known = {t.release for t in tasks if t.release}
         self.nn = NameNormalizer(names_reference)
         self.rows = OrderedDict()
@@ -427,7 +428,7 @@ class TestMatrix(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
-        m = Matrix([t1, t2, t3], {"Ptr" : "Petr", "x" : "y"})
+        m = Matrix([t1, t2, t3], {"Ptr": "Petr", "x": "y"})
         self.assertEqual(m.rows['Petr'].tasks_ttl, 3)
         self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
         self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
@@ -501,9 +502,10 @@ class TestMatrixPrinter(unittest.TestCase):
 class TestNameFilter(unittest.TestCase):
     def test_filtration(self):
         src = ['a', 'b']
-        nf = NameNormalizer({"a" : "1", "b" : "2"})
+        nf = NameNormalizer({"a": "1", "b": "2"})
         dst = [nf.normalize(x) for x in src]
         self.assertListEqual(['1', '2'], dst)
+
 
 class TestNamesReferenceValidator(unittest.TestCase):
     def test_valid(self):
