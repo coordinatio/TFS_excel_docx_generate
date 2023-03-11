@@ -226,6 +226,8 @@ class Matrix:
         for t in tasks:
             for a in t.assignees:
                 self.add_record(a, t.release, t)
+        for x in [y for y in names_reference.values() if y not in self.rows]:
+            self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known)
 
     def add_record(self, assignee: str, release: str, task: Task):
         a = self.nn.normalize(assignee)
@@ -245,18 +247,30 @@ class MatrixPrinter:
         for y in m.rows:
             col = 0
             row += 1
-            self.brush(col, row, y)
+            if m.rows[y].tasks_ttl == 0:
+                self.brush_highlight(col, row, y)
+                self.brush_comment(col, row,
+                                    'Нет задач за отчётный период, скорректируйте табличку вручную.')
+            else:
+                self.brush(col, row, y)
+
             for x in header:
                 col += 1
-                self.brush_percent(col, row, len(
-                    m.rows[y].releases[x])/m.rows[y].tasks_ttl)
+                if m.rows[y].tasks_ttl == 0:
+                    self.brush_percent(col, row, 0)
+                else:
+                    self.brush_percent(col, row, len(
+                        m.rows[y].releases[x])/m.rows[y].tasks_ttl)
                 comment = ["%s: %s\n" % (t.title, t.link)
                            for t in m.rows[y].releases[x]]
                 if comment:
                     self.brush_comment(col, row, "\n".join(comment))
             col += 1
-            self.brush_percent(col, row, len(
-                m.rows[y].default)/m.rows[y].tasks_ttl)
+            if m.rows[y].tasks_ttl == 0:
+                self.brush_percent(col, row, 0)
+            else:
+                self.brush_percent(col, row, len(
+                    m.rows[y].default)/m.rows[y].tasks_ttl)
             comment = ["%s: %s\n" % (t.title, t.link)
                        for t in m.rows[y].default]
             if comment:
@@ -266,6 +280,9 @@ class MatrixPrinter:
         pass
 
     def brush_percent(self, col, row, x):
+        self.brush(col, row, x)
+
+    def brush_highlight(self, col, row, x):
         self.brush(col, row, x)
 
     def brush_comment(self, col, row, x):
@@ -279,13 +296,17 @@ class ExcelPrinter(MatrixPrinter):
     def __enter__(self):
         self.book = xlsxwriter.Workbook(self.filename)
         self.sheet = self.book.add_worksheet()
+
         self.fmt_percent = self.book.add_format()
         self.fmt_percent.set_num_format('0.00%')
+
         self.fmt_gray = self.book.add_format({'font_color': '#eeeeee'})
         self.sheet.conditional_format(0, 0, 999, 999, {'type':     'cell',
                                                        'criteria': '=',
                                                        'value':    0,
                                                        'format':   self.fmt_gray})
+
+        self.fmt_highlight = self.book.add_format({'bg_color': '#ffff7f'})
         return self
 
     def __exit__(self, *args):
@@ -298,6 +319,9 @@ class ExcelPrinter(MatrixPrinter):
 
     def brush_percent(self, col, row, x):
         self.sheet.write(row, col, x, self.fmt_percent)
+
+    def brush_highlight(self, col, row, x):
+        self.sheet.write(row, col, x, self.fmt_highlight)
 
     def brush_comment(self, col, row, x):
         self.sheet.write_comment(row, col, x)
@@ -433,6 +457,13 @@ class TestMatrix(unittest.TestCase):
         self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
         self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
 
+    def test_empty_assignee_control(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        m = Matrix([t1, t2], {"Ptr": "Petr", "x": "Empty", "y": "Empty"})
+        self.assertEqual(m.rows['Empty'].tasks_ttl, 0)
+
+
 
 class TestMatrixPrinter(unittest.TestCase):
 
@@ -440,6 +471,7 @@ class TestMatrixPrinter(unittest.TestCase):
         def __init__(self) -> None:
             self.paper = [['']]
             self.paper_comments = [['']]
+            self.paper_highlights = [['']]
 
         def brush(self, col, row, x):
             TestMatrixPrinter.TestPrinter._print(self.paper, col, row, x)
@@ -447,6 +479,10 @@ class TestMatrixPrinter(unittest.TestCase):
         def brush_comment(self, col, row, x):
             TestMatrixPrinter.TestPrinter._print(
                 self.paper_comments, col, row, x)
+
+        def brush_highlight(self, col, row, x):
+            TestMatrixPrinter.TestPrinter._print(
+                self.paper_highlights, col, row, x)
 
         @staticmethod
         def _print(p, col, row, x):
@@ -482,11 +518,20 @@ class TestMatrixPrinter(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
         l = TestMatrixPrinter.TestPrinter()
-        l.print(Matrix([t1, t2]))
-        out = [['', '',              ''],
-               ['', 'A: http://A\n', ''],
-               ['', 'B: http://B\n', 'B: http://B\n']]
+        l.print(Matrix([t1, t2], {'x': 'A person with no tasks'}))
+        out = [['', '', '', 'Нет задач за отчётный период, скорректируйте табличку вручную.'],
+               ['', 'A: http://A\n', '', ''],
+               ['', 'B: http://B\n', 'B: http://B\n', '']]
         for i, col in enumerate(l.paper_comments):
+            self.assertListEqual(out[i], col)
+
+    def test_hightlights(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2], {'x' : 'Empty', 'y' : 'Empty'}))
+        out = [['', '', '', 'Empty']]
+        for i, col in enumerate(l.paper_highlights):
             self.assertListEqual(out[i], col)
 
     def test_excel_printer(self):
@@ -496,13 +541,13 @@ class TestMatrixPrinter(unittest.TestCase):
         t3 = Task('Task 3 with very very long description like you can find in real life',
                   ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
         with ExcelPrinter('test_excel_printer.xlsx') as printer:
-            printer.print(Matrix([t1, t2, t3]))
+            printer.print(Matrix([t1, t2, t3], {'x': 'Empty'}))
 
 
 class TestNameFilter(unittest.TestCase):
     def test_filtration(self):
         src = ['a', 'b']
-        nf = NameNormalizer({"a": "1", "b": "2"})
+        nf = NameNormalizer({"a": "1", "b": "2", "c" : "2"})
         dst = [nf.normalize(x) for x in src]
         self.assertListEqual(['1', '2'], dst)
 
