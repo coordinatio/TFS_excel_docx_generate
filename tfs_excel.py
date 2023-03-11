@@ -109,7 +109,7 @@ class Handler():
 
 class HandlerCai(Handler):
     def retrieve(self, pat, date_from, date_to):
-        q = """SELECT [System.AssignedTo], [Tags]
+        q1 = """SELECT [System.AssignedTo], [Tags]
         FROM workitems
         WHERE 
             [System.State] = 'Done' 
@@ -118,7 +118,21 @@ class HandlerCai(Handler):
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
         """ % (date_from, date_to)
-        return TFSAPI("https://tfs.content.ai/", project="HQ/ContentAI", pat=pat).run_wiql(q).workitems
+        q2 = """SELECT [System.AssignedTo], [Tags]
+        FROM workitems
+        WHERE 
+            [System.State] = 'Done' 
+            AND [System.WorkItemType] = 'Product Backlog Item' 
+            AND [System.AreaPath] = 'ContentAI\\Документация'
+            AND ([Closed Date] >= '%s' AND [Closed Date] <= '%s')
+            AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
+        ORDER BY [System.AssignedTo]
+        """ % (date_from, date_to)
+        w = []
+        for q in [q1, q2]:
+            w += TFSAPI("https://tfs.content.ai/",
+                        project="HQ/ContentAI", pat=pat).run_wiql(q).workitems
+        return w
 
     def get_release(self, workitem):
         w = workitem
@@ -250,7 +264,7 @@ class MatrixPrinter:
             if m.rows[y].tasks_ttl == 0:
                 self.brush_highlight(col, row, y)
                 self.brush_comment(col, row,
-                                    'Нет задач за отчётный период, скорректируйте табличку вручную.')
+                                   'Нет задач за отчётный период, скорректируйте табличку вручную.')
             else:
                 self.brush(col, row, y)
 
@@ -464,7 +478,6 @@ class TestMatrix(unittest.TestCase):
         self.assertEqual(m.rows['Empty'].tasks_ttl, 0)
 
 
-
 class TestMatrixPrinter(unittest.TestCase):
 
     class TestPrinter(MatrixPrinter):
@@ -529,7 +542,7 @@ class TestMatrixPrinter(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
         l = TestMatrixPrinter.TestPrinter()
-        l.print(Matrix([t1, t2], {'x' : 'Empty', 'y' : 'Empty'}))
+        l.print(Matrix([t1, t2], {'x': 'Empty', 'y': 'Empty'}))
         out = [['', '', '', 'Empty']]
         for i, col in enumerate(l.paper_highlights):
             self.assertListEqual(out[i], col)
@@ -547,7 +560,7 @@ class TestMatrixPrinter(unittest.TestCase):
 class TestNameFilter(unittest.TestCase):
     def test_filtration(self):
         src = ['a', 'b']
-        nf = NameNormalizer({"a": "1", "b": "2", "c" : "2"})
+        nf = NameNormalizer({"a": "1", "b": "2", "c": "2"})
         dst = [nf.normalize(x) for x in src]
         self.assertListEqual(['1', '2'], dst)
 
