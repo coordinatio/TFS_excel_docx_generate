@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-from json import JSONDecoder, JSONEncoder
+from json import JSONDecoder
 from typing import Dict, List, OrderedDict
 from tfs import TFSAPI
-from pathlib import Path
+import os
 import xlsxwriter
 import re
 import argparse
@@ -10,6 +10,35 @@ import datetime
 import subprocess
 import sys
 import unittest
+
+
+class ArgsTypes:
+    @staticmethod
+    def validate_names_reference(d : dict):
+        msg = 'Names json has incorrect structure, must be flat str->str pairs'
+        if type(d) is not dict:
+            raise argparse.ArgumentTypeError(msg)
+        for k in d:
+            if type(k) is not str or type(d[k]) is not str:
+                raise argparse.ArgumentTypeError(msg)
+
+    @staticmethod
+    def arg_names_reference_file(path_to_file: str) -> dict:
+        """reads file, parses json, validates contents
+        returns dict with incorrect -> correct name pairs"""
+        j = {}
+        if not path_to_file:
+            return j
+        if not os.path.exists(path_to_file):
+            raise argparse.ArgumentTypeError("Names reference file %s does not exist" % path_to_file)
+        try:
+            with open(path_to_file, 'r') as f:
+                j = JSONDecoder().decode(f.read())
+        except:
+            raise argparse.ArgumentTypeError("%s contains invalid json" % path_to_file)
+        ArgsTypes.validate_names_reference(j)
+        return j
+
 
 
 def parse_args():
@@ -28,8 +57,8 @@ def parse_args():
                         help="File to put results into")
     parser.add_argument("--open", action='store_true', default=False,
                         help="Tells if to open the resulting file immediately after creation")
-    parser.add_argument('--namenorm_path', type=Path,
-                        default=Path(__file__).absolute().parent / 'name_filter.json',
+    parser.add_argument('--names_reference', type=ArgsTypes.arg_names_reference_file,
+                        default='name_filter.json',
                         help="Path to the file containing json with name pairs")
     return parser.parse_args()
 
@@ -164,10 +193,8 @@ class HandlerLingvo(Handler):
 
 
 class NameNormalizer:
-    def __init__(self, json = '') -> None:
-        self.dict = dict()
-        if json:
-            self.dict = JSONDecoder().decode(json)
+    def __init__(self, ref) -> None:
+        self.dict = ref
 
     def normalize(self, s : str) -> str:
         if s in self.dict:
@@ -191,9 +218,9 @@ class Matrix:
                 self.default.append(task)
             self.tasks_ttl += 1
 
-    def __init__(self, tasks: List, name_norm_json = ''):
+    def __init__(self, tasks: List, names_reference = {}):
         self.releases_ever_known = {t.release for t in tasks if t.release}
-        self.nn = NameNormalizer(name_norm_json)
+        self.nn = NameNormalizer(names_reference)
         self.rows = OrderedDict()
         for t in tasks:
             for a in t.assignees:
@@ -283,9 +310,7 @@ def main():
         i += x(a.pat, vars(a)["from"], vars(a)["to"]).workitems
 
     with ExcelPrinter(a.out) as p:
-        if a.namenorm_path.is_file():
-            with a.namenorm_path.open('r') as f:
-                p.print(Matrix(i, f.read()))
+        p.print(Matrix(i, a.names_reference))
 
     if (a.open):
         if sys.platform in ("linux", "linux2"):
@@ -402,7 +427,7 @@ class TestMatrix(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
-        m = Matrix([t1, t2, t3], '{"Ptr" : "Petr", "x" : "y"}')
+        m = Matrix([t1, t2, t3], {"Ptr" : "Petr", "x" : "y"})
         self.assertEqual(m.rows['Petr'].tasks_ttl, 3)
         self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
         self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
@@ -476,8 +501,26 @@ class TestMatrixPrinter(unittest.TestCase):
 class TestNameFilter(unittest.TestCase):
     def test_filtration(self):
         src = ['a', 'b']
-        nf = NameNormalizer('{"a" : "1", "b" : "2"}')
+        nf = NameNormalizer({"a" : "1", "b" : "2"})
         dst = [nf.normalize(x) for x in src]
         self.assertListEqual(['1', '2'], dst)
 
+class TestNamesReferenceValidator(unittest.TestCase):
+    def test_valid(self):
+        j = '{"a" : "b", "s" : "b", "d" : "f"}'
+        ArgsTypes.validate_names_reference(JSONDecoder().decode(j))
 
+    def test_invalid1(self):
+        j = '{"a" : "b", "s" : {"x" : "y"}}'
+        with self.assertRaises(argparse.ArgumentTypeError):
+            ArgsTypes.validate_names_reference(JSONDecoder().decode(j))
+
+    def test_invalid2(self):
+        j = '{"a" : "b", "s" : ["x", "y"]}'
+        with self.assertRaises(argparse.ArgumentTypeError):
+            ArgsTypes.validate_names_reference(JSONDecoder().decode(j))
+
+    def test_invalid3(self):
+        j = '["a", "s"]'
+        with self.assertRaises(argparse.ArgumentTypeError):
+            ArgsTypes.validate_names_reference(JSONDecoder().decode(j))
