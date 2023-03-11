@@ -211,23 +211,26 @@ class HandlerLingvo(Handler):
 
 
 class NameNormalizer:
-    def __init__(self, ref) -> None:
+    def __init__(self, ref : dict) -> None:
         self.dict = ref
+        self.vals = {x for x in ref.values()}
 
-    def normalize(self, s: str) -> str:
+    def normalize(self, s: str) -> tuple[str, bool]:
+        """returns (normalized name : str, if the name is known : bool)""" 
         if s in self.dict:
-            return self.dict[s]
-        return s
+            return (self.dict[s], True)
+        return (s, s in self.vals)
 
 
 class Matrix:
     class AssigneeInfo:
-        def __init__(self, releases_ever_known: set) -> None:
+        def __init__(self, releases_ever_known: set, is_name_known: bool) -> None:
             self.tasks_ttl = 0
             self.releases = OrderedDict()
             for r in releases_ever_known:
                 self.releases[r] = []
             self.default = []  # here all not release related tasks go
+            self.name_known = is_name_known
 
         def add_task(self, release: str, task: Task):
             if release:
@@ -244,16 +247,18 @@ class Matrix:
             for a in t.assignees:
                 self.add_record(a, t.release, t)
         for x in [y for y in names_reference.values() if y not in self.rows]:
-            self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known)
+            self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known, True)
 
     def add_record(self, assignee: str, release: str, task: Task):
-        a = self.nn.normalize(assignee)
+        a, known = self.nn.normalize(assignee)
         if a not in self.rows:
-            self.rows[a] = Matrix.AssigneeInfo(self.releases_ever_known)
+            self.rows[a] = Matrix.AssigneeInfo(self.releases_ever_known, known)
         self.rows[a].add_task(release, task)
 
 
 class MatrixPrinter:
+    msg_no_tasks = 'Нет задач за отчётный период, исправьте задачи в TFS и перегенерируйте отчёт.'
+    msg_person_unknown = 'Имя отсутствует в списках коррекции, сломается автоматизация у бухгалтеров.'
     def print(self, m: Matrix):
         header = [x for x in sorted(m.releases_ever_known)]
         col = 0
@@ -264,12 +269,16 @@ class MatrixPrinter:
         for y in m.rows:
             col = 0
             row += 1
-            if m.rows[y].tasks_ttl == 0:
-                self.brush_highlight(col, row, y)
-                self.brush_comment(col, row,
-                                   'Нет задач за отчётный период, скорректируйте табличку вручную.')
-            else:
+            if m.rows[y].tasks_ttl and m.rows[y].name_known:
                 self.brush(col, row, y)
+            else:
+                self.brush_highlight(col, row, y)
+                msg = []
+                if m.rows[y].tasks_ttl == 0:
+                    msg.append(MatrixPrinter.msg_no_tasks)
+                if not m.rows[y].name_known:
+                    msg.append(MatrixPrinter.msg_person_unknown)
+                self.brush_comment(col, row, "\n\n".join(msg))
 
             for x in header:
                 col += 1
@@ -522,7 +531,7 @@ class TestMatrixPrinter(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         l = TestMatrixPrinter.TestPrinter()
-        l.print(Matrix([t1, t2]))
+        l.print(Matrix([t1, t2], {'P': 'Petr', 'F': 'Foma'}))
         out = [['', 'Petr', 'Foma'],
                ['FTW_13.3.7', 0.5, 0.0],
                ['OMG_13.3.8', 0.5, 1.0],
@@ -534,19 +543,28 @@ class TestMatrixPrinter(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
         l = TestMatrixPrinter.TestPrinter()
-        l.print(Matrix([t1, t2], {'x': 'A person with no tasks'}))
-        out = [['', '', '', 'Нет задач за отчётный период, скорректируйте табличку вручную.'],
+        l.print(Matrix([t1, t2], {'x': 'A person with no tasks', 'y': 'Foma'}))
+        out = [['', MatrixPrinter.msg_person_unknown, '', MatrixPrinter.msg_no_tasks],
                ['', 'A: http://A\n', '', ''],
                ['', 'B: http://B\n', 'B: http://B\n', '']]
         for i, col in enumerate(l.paper_comments):
             self.assertListEqual(out[i], col)
 
-    def test_hightlights(self):
+    def test_hightlights_if_no_tasks(self):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
         l = TestMatrixPrinter.TestPrinter()
-        l.print(Matrix([t1, t2], {'x': 'Empty', 'y': 'Empty'}))
+        l.print(Matrix([t1, t2], {'P' : 'Petr', 'F': 'Foma', 'x': 'Empty', 'y': 'Empty'}))
         out = [['', '', '', 'Empty']]
+        for i, col in enumerate(l.paper_highlights):
+            self.assertListEqual(out[i], col)
+
+    def test_hightlights_if_new_name(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2], {'F': 'Foma', 'x': 'Empty', 'y': 'Empty'}))
+        out = [['', 'Petr', '', 'Empty']]
         for i, col in enumerate(l.paper_highlights):
             self.assertListEqual(out[i], col)
 
@@ -564,7 +582,7 @@ class TestNameFilter(unittest.TestCase):
     def test_filtration(self):
         src = ['a', 'b']
         nf = NameNormalizer({"a": "1", "b": "2", "c": "2"})
-        dst = [nf.normalize(x) for x in src]
+        dst = [nf.normalize(x)[0] for x in src]
         self.assertListEqual(['1', '2'], dst)
 
 
