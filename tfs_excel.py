@@ -122,7 +122,6 @@ class HandlerCai(Handler):
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
         """
-        print(q1)
         w = TFSAPI("https://tfs.content.ai/",
                    project="HQ/ContentAI", pat=pat).run_wiql(q1).workitems
 
