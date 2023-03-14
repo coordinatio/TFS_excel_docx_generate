@@ -159,15 +159,19 @@ class HandlerCai(Handler):
 
 class HandlerIS(Handler):
     def retrieve(self, pat, date_from, date_to):
-        q = """SELECT [System.AssignedTo], [Tags]
+        q = f"""SELECT [System.AssignedTo], [Tags]
         FROM workitems
         WHERE 
             [System.State] = 'Closed' 
             AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Task') 
-            AND ([Closed Date] >= '%s' AND [Closed Date] <= '%s')
+            AND (
+                ([Closed Date] >= '{date_from}' AND [Closed Date] <= '{date_to}' AND [Closed Date Override] = '')
+                OR
+                ([Closed Date Override] >= '{date_from}' AND [Closed Date Override] <= '{date_to}')
+                )
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
         ORDER BY [System.AssignedTo]
-        """ % (date_from, date_to)
+        """
         return TFSAPI("https://tfs.content.ai/", project="NLC/AIS", pat=pat).run_wiql(q).workitems
 
     def get_release(self, workitem):
