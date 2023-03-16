@@ -413,7 +413,7 @@ def main():
     for x in (HandlerCai, HandlerIS, HandlerLingvo):
         i += x(a.pat, vars(a)["from"], vars(a)["to"]).workitems
 
-    with ExcelPrinter(a.out) as p:
+    with ExcelPrinter(a.out, vars(a)["from"], vars(a)["to"]) as p:
         p.print(Matrix(i, a.names_reference))
 
     if (a.open):
