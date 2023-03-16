@@ -341,12 +341,14 @@ class MatrixPrinter:
 
 
 class ExcelPrinter(MatrixPrinter):
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, date_from: str, date_to: str) -> None:
         self.filename = filename
+        self.d_from = date_from
+        self.d_to = date_to
 
     def __enter__(self):
         self.book = xlsxwriter.Workbook(self.filename)
-        self.sheet = self.book.add_worksheet()
+        self.sheet = self.book.add_worksheet(f'с {self.d_from} до {self.d_to} вкл.')
 
         self.fmt_percent = self.book.add_format()
         self.fmt_percent.set_num_format('0.00%')
@@ -360,9 +362,35 @@ class ExcelPrinter(MatrixPrinter):
         self.fmt_highlight = self.book.add_format({'bg_color': '#ffff7f'})
         return self
 
+    def _helpsheet_write(self):
+        s = self.book.add_worksheet('КАК РАБОТАТЬ С ТАБЛИЦЕЙ')
+#      indent level, text
+        ls = ((0, "Краткая инструкция, как работать с этим отчётом:"),
+             (0, "1. Не редактируйте таблицу руками, вместо этого правьте задачи в TFS и перегенерируйте отчёт"),
+             (1, "Причина тут в том, что требуется, чтобы отчёты о распределении времени (эта табличка) соответствовали"),
+             (1, "служебным заданиям, которые генерируются так же автоматически на основе TFS. Поэтому требуется, чтобы "),
+             (1, "TFS, как первоисточник, содержал правильные данные."),
+             (0, "2. Если задача попала не в тот выпуск то в TFS это исправляется так:"),
+             (1, "+ Для задач в проекте HQ\\ContentAI:"),
+             (2, "Надо поставить тег выпуска (напр. FTW_13.3.7) на саму задачу или одного из её родителей вверх по иерархии."),
+             (1, "+ Для задач из проектов Lingvo или LingvoLive:"),
+             (2, "Надо поместить задачу в итерацию, соответствующую выпуску."),
+             (1, "+ Для задач из проекта NLC\\AIS:"),
+             (2, "Надо поместить задачу в area, соответствующую выпуску."),
+             (0, "3. Если вы обнаружили, что в отчёте лишние задачи (например не относящиеся к сделанной работе)"),
+             (1, "то вы можете поставить на них тег EXCLUDE_FROM_TIME_REPORTS и они перестанут попадать в отчёт."),
+             (0, "4. Если вы видите, что каких-то задач не хватает. (Опять %username% не перевёл сделанные задачи в Done)"),
+             (1, "то вы можете закрыть их и заполнить специальное поле 'Close Date Override', чтобы отнести их к нужному периоду"),
+             (1, "в поле нужно записывать дату в формате YYYY-MM-DD"),
+             (1, "(поле пока не добавлено в проекты Lingvo, уж больно их много, если поле будет там нужно — напишите Ивану В.)"),
+              )
+        for i, x in enumerate(ls):
+            s.write(i, x[0], x[1])
+
     def __exit__(self, *args):
         self.sheet.autofit()
         self.sheet.freeze_panes(1, 1)
+        self._helpsheet_write()
         self.book.close()
 
     def brush(self, col, row, x):
@@ -600,7 +628,7 @@ class TestMatrixPrinter(unittest.TestCase):
         t2 = Task('Task 2', ['Sheph', 'Petr'], 'OMG_13.3.8', 'http://task2')
         t3 = Task('Task 3 with very very long description like you can find in real life',
                   ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
-        with ExcelPrinter('test_excel_printer.xlsx') as printer:
+        with ExcelPrinter('test_excel_printer.xlsx', '31-01-2023', '28-02-2023') as printer:
             printer.print(Matrix([t1, t2, t3], {'x': 'Empty'}))
 
 
