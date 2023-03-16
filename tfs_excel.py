@@ -41,25 +41,38 @@ class ArgsTypes:
         ArgsTypes.validate_names_reference(j)
         return j
 
+    @staticmethod
+    def arg_date(i: str) -> str:
+        d = ('-', '.', '/', ' ')
+        for x in d:
+            try:
+                return datetime.datetime.strptime(i, f'%d{x}%m{x}%Y').date().strftime("%d-%m-%Y")
+            except:
+                pass
+        raise argparse.ArgumentTypeError(
+            f"Please provide date in either {' or '.join([f'dd{x}mm{x}YYYY' for x in d])} format")
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pat')
+    parser.add_argument('--pat', required=True,
+                        help=('A Personal Access Token string which could be obtained '
+                              'in the "Security" entry inside your TFS profile'))
     parser.add_argument('--from',
-                        type=lambda d: datetime.datetime.strptime(
-                            d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
+                        type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
                         help='dd-mm-YYYY', required=True)
     parser.add_argument('--to',
-                        type=lambda d: datetime.datetime.strptime(
-                            d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
+                        type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
                         help='dd-mm-YYYY', required=True)
-    parser.add_argument("--out", default="time_report.xlsx",
-                        help="File to put results into")
+    parser.add_argument("--out",
+                        default="time_report.xlsx", metavar='./THE_EXCEL_FILE_TO_WRITE_INTO.xlsx',
+                        help="File to put the results into. Defaults to 'time_report.xlsx'.")
     parser.add_argument("--open", action='store_true', default=False,
                         help="Tells if to open the resulting file immediately after creation")
     parser.add_argument('--names_reference', type=ArgsTypes.arg_names_reference_file,
-                        default='name_filter.json',
-                        help="Path to the file containing json with name pairs")
+                        default='name_filter.json', metavar='./A_SPECIAL_FILE.json',
+                        help=("Path to the file containing json with name pairs. "
+                              "Defaults to 'name_filter.json'."))
     return parser.parse_args()
 
 
