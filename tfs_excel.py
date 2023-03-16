@@ -44,8 +44,7 @@ class ArgsTypes:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pat',
-                        default="fmzzuj6opqc2yv2zspw2uoiz73k5iwa5q2v25nzcwyztg5oqtw3q")
+    parser.add_argument('--pat')
     parser.add_argument('--from',
                         type=lambda d: datetime.datetime.strptime(
                             d, '%d-%m-%Y').date().strftime("%d-%m-%Y"),
@@ -223,12 +222,12 @@ class HandlerLingvo(Handler):
 
 
 class NameNormalizer:
-    def __init__(self, ref : dict) -> None:
+    def __init__(self, ref: dict) -> None:
         self.dict = ref
         self.vals = {x for x in ref.values()}
 
     def normalize(self, s: str) -> tuple[str, bool]:
-        """returns (normalized name : str, if the name is known : bool)""" 
+        """returns (normalized name : str, if the name is known : bool)"""
         if s in self.dict:
             return (self.dict[s], True)
         return (s, s in self.vals)
@@ -271,6 +270,7 @@ class Matrix:
 class MatrixPrinter:
     msg_no_tasks = 'Нет задач за отчётный период, исправьте задачи в TFS и перегенерируйте отчёт.'
     msg_person_unknown = 'Имя отсутствует в списках коррекции, сломается автоматизация у бухгалтеров.'
+
     def print(self, m: Matrix):
         header = [x for x in sorted(m.releases_ever_known)]
         col = 0
@@ -566,7 +566,8 @@ class TestMatrixPrinter(unittest.TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
         l = TestMatrixPrinter.TestPrinter()
-        l.print(Matrix([t1, t2], {'P' : 'Petr', 'F': 'Foma', 'x': 'Empty', 'y': 'Empty'}))
+        l.print(
+            Matrix([t1, t2], {'P': 'Petr', 'F': 'Foma', 'x': 'Empty', 'y': 'Empty'}))
         out = [['', '', '', 'Empty']]
         for i, col in enumerate(l.paper_highlights):
             self.assertListEqual(out[i], col)
