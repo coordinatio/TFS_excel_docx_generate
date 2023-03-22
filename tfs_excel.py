@@ -277,19 +277,20 @@ class Matrix:
 
     def __init__(self, tasks: List, names_reference={}):
         self.releases_ever_known = {t.release for t in tasks if t.release}
-        self.nn = NameNormalizer(names_reference)
+        nn = NameNormalizer(names_reference)
         self.rows = OrderedDict()
         for t in tasks:
-            for a in t.assignees:
-                self.add_record(a, t.release, t)
+            q = [nn.normalize(x) for x in t.assignees]
+            assignees = {a[0]: a[1] for a in q}
+            for a in assignees:
+                self.add_record(a, t.release, t, assignees[a])
         for x in [y for y in names_reference.values() if y not in self.rows]:
             self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known, True)
 
-    def add_record(self, assignee: str, release: str, task: Task):
-        a, known = self.nn.normalize(assignee)
-        if a not in self.rows:
-            self.rows[a] = Matrix.AssigneeInfo(self.releases_ever_known, known)
-        self.rows[a].add_task(release, task)
+    def add_record(self, assignee: str, release: str, task: Task, known: bool):
+        if assignee not in self.rows:
+            self.rows[assignee] = Matrix.AssigneeInfo(self.releases_ever_known, known)
+        self.rows[assignee].add_task(release, task)
 
 
 class MatrixPrinter:
@@ -567,6 +568,12 @@ class TestMatrix(unittest.TestCase):
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         m = Matrix([t1, t2], {"Ptr": "Petr", "x": "Empty", "y": "Empty"})
         self.assertEqual(m.rows['Empty'].tasks_ttl, 0)
+
+    def test_same_assignee_several_times(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Ptr', 'Petr'], 'OMG_13.3.8', 'http://')
+        m = Matrix([t1, t2], {"Ptr": "Petr"})
+        self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
 
 
 class TestMatrixPrinter(unittest.TestCase):
