@@ -77,7 +77,7 @@ def parse_args():
 
 
 class Task:
-    def __init__(self, title, assignees, release, link) -> None:
+    def __init__(self, title: str, assignees: List[str], release: str, link: str) -> None:
         self.title = title
         self.assignees = assignees
         self.release = release
@@ -113,7 +113,7 @@ class Handler():
         return str(workitem['Title'])
 
     def get_release(self, workitem):
-        pass
+        return ''
 
     def get_link(self, workitem):
         return str(workitem._links['html']['href'])
