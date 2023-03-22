@@ -79,7 +79,7 @@ def parse_args():
 class Task:
     def __init__(self, title: str, assignees: List[str], release: str, link: str) -> None:
         self.title = title
-        self.assignees = assignees
+        self.assignees = [x for x in set(assignees)]
         self.release = release
         self.link = link
         self.broken = not self.title or not self.assignees
@@ -486,6 +486,16 @@ class TestAssigneeExtraction(unittest.TestCase):
                 return [MockWorkitem(d)]
         self.assertEqual(X('', '', '').workitems[0].assignees, [
                          'Алексей Калюжный', 'Федор Симашев'])
+
+    def test_assignee_doubling_case(self):
+        d = {'AssignedTo': 'Федор Симашев <CONTENT\\Somestring>',
+             'Tags': '#Федор_Симашев; CC_12.8.0',
+             'Title': 'Test title'}
+
+        class X(HandlerCai):
+            def retrieve(self, pat, date_from, date_to):
+                return [MockWorkitem(d)]
+        self.assertEqual(X('', '', '').workitems[0].assignees, ['Федор Симашев'])
 
 
 class TestReleaseExtraction(unittest.TestCase):
