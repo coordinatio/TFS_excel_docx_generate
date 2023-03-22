@@ -280,17 +280,13 @@ class Matrix:
         nn = NameNormalizer(names_reference)
         self.rows = OrderedDict()
         for t in tasks:
-            q = [nn.normalize(x) for x in t.assignees]
-            assignees = {a[0]: a[1] for a in q}
-            for a in assignees:
-                self.add_record(a, t.release, t, assignees[a])
+            for a, k in OrderedDict([nn.normalize(x) for x in t.assignees]).items():
+                if a not in self.rows:
+                    self.rows[a] = Matrix.AssigneeInfo(self.releases_ever_known, k)
+                self.rows[a].add_task(t.release, t)
         for x in [y for y in names_reference.values() if y not in self.rows]:
             self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known, True)
 
-    def add_record(self, assignee: str, release: str, task: Task, known: bool):
-        if assignee not in self.rows:
-            self.rows[assignee] = Matrix.AssigneeInfo(self.releases_ever_known, known)
-        self.rows[assignee].add_task(release, task)
 
 
 class MatrixPrinter:
