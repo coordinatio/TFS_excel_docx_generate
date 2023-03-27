@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 from json import JSONDecoder
 from typing import Dict, List, OrderedDict
+import zipfile
 from tfs import TFSAPI
+from docx import Document
 import os
 import xlsxwriter
 import re
@@ -33,7 +35,7 @@ class ArgsTypes:
             raise argparse.ArgumentTypeError(
                 "Names reference file %s does not exist" % path_to_file)
         try:
-            with open(path_to_file, 'r') as f:
+            with open(path_to_file, 'r', encoding="utf-8") as f:
                 j = JSONDecoder().decode(f.read())
         except:
             raise argparse.ArgumentTypeError(
@@ -77,11 +79,13 @@ def parse_args():
 
 
 class Task:
-    def __init__(self, title: str, assignees: List[str], release: str, link: str) -> None:
+    def __init__(self, title: str, assignees: List[str], release: str, link: str, date_created = None, date_closed=None) -> None:
         self.title = title
-        self.assignees = [x for x in set(assignees)]
+        self.assignees = [x for x in sorted(set(assignees))]
         self.release = release
         self.link = link
+        self.date_created = date_created
+        self.date_closed = date_closed
         self.broken = not self.title or not self.assignees
 
 
@@ -92,7 +96,9 @@ class Handler():
             tasks.append(Task(self.get_title(w),
                               self.get_assignees(w),
                               self.get_release(w),
-                              self.get_link(w)))
+                              self.get_link(w),
+                              self.get_date_created(w),
+                              self.get_date_closed(w)))
         self.workitems = tasks
 
     def get_assignees(self, workitem):
@@ -112,6 +118,12 @@ class Handler():
     def get_title(self, workitem):
         return str(workitem['Title'])
 
+    def get_date_created(self, workitem):
+        return datetime.datetime.strptime(workitem['CreatedDate'][:10], '%Y-%m-%d').date()
+
+    def get_date_closed(self, workitem):
+        return datetime.datetime.strptime(workitem['microsoft.vsts.common.closeddate'][:10], '%Y-%m-%d').date()
+
     def get_release(self, workitem):
         return ''
 
@@ -123,12 +135,12 @@ class HandlerCai(Handler):
     def retrieve(self, pat, date_from, date_to):
         q1 = f"""SELECT [System.AssignedTo], [Tags]
         FROM workitems
-        WHERE 
-            [System.State] = 'Done' 
-            AND [System.WorkItemType] = 'Task' 
+        WHERE
+            [System.State] = 'Done'
+            AND [System.WorkItemType] = 'Task'
             AND (
                 ([Closed Date] >= '{date_from}' AND [Closed Date] <= '{date_to}' AND [Closed Date Override] = '')
-                OR 
+                OR
                 ([Closed Date Override] >= '{date_from}' AND [Closed Date Override] <= '{date_to}')
                 )
             AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
@@ -139,9 +151,9 @@ class HandlerCai(Handler):
 
         q2 = f"""SELECT [System.AssignedTo], [Tags]
         FROM workitems
-        WHERE 
-            [System.State] = 'Done' 
-            AND [System.WorkItemType] = 'Product Backlog Item' 
+        WHERE
+            [System.State] = 'Done'
+            AND [System.WorkItemType] = 'Product Backlog Item'
             AND [System.AreaPath] = '%s'
             AND (
                 ([Closed Date] >= '{date_from}' AND [Closed Date] <= '{date_to}' AND [Closed Date Override] = '')
@@ -173,9 +185,9 @@ class HandlerIS(Handler):
     def retrieve(self, pat, date_from, date_to):
         q = f"""SELECT [System.AssignedTo], [Tags]
         FROM workitems
-        WHERE 
-            [System.State] = 'Closed' 
-            AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Task') 
+        WHERE
+            [System.State] = 'Closed'
+            AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Task')
             AND (
                 ([Closed Date] >= '{date_from}' AND [Closed Date] <= '{date_to}' AND [Closed Date Override] = '')
                 OR
@@ -198,10 +210,10 @@ class HandlerLingvo(Handler):
         qs = {'Lingvo':
               f"""SELECT [System.AssignedTo], [Tags]
                 FROM workitems
-                WHERE 
-                    [System.State] = 'Closed' 
+                WHERE
+                    [System.State] = 'Closed'
                     AND [System.TeamProject] <> 'lingvo.inbox'
-                    AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')  
+                    AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')
                     AND ([Closed Date] >= '{date_from}' AND [Closed Date] <= '{date_to}')
                     AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
                 ORDER BY [System.AssignedTo]
@@ -209,9 +221,9 @@ class HandlerLingvo(Handler):
               'LingvoLive':
               f"""SELECT [System.AssignedTo], [Tags]
                 FROM workitems
-                WHERE 
-                    [System.State] = 'Closed' 
-                    AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')  
+                WHERE
+                    [System.State] = 'Closed'
+                    AND ([System.WorkItemType] = 'Bug' OR [System.WorkItemType] = 'Feature')
                     AND ([Closed Date] >= '{date_from}' AND [Closed Date] <= '{date_to}')
                     AND [System.Tags] NOT CONTAINS 'EXCLUDE_FROM_TIME_REPORTS'
                 ORDER BY [System.AssignedTo]
@@ -282,11 +294,11 @@ class Matrix:
         for t in tasks:
             for a, k in OrderedDict([nn.normalize(x) for x in t.assignees]).items():
                 if a not in self.rows:
-                    self.rows[a] = Matrix.AssigneeInfo(self.releases_ever_known, k)
+                    self.rows[a] = Matrix.AssigneeInfo(
+                        self.releases_ever_known, k)
                 self.rows[a].add_task(t.release, t)
         for x in [y for y in names_reference.values() if y not in self.rows]:
             self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known, True)
-
 
 
 class MatrixPrinter:
@@ -419,6 +431,92 @@ class ExcelPrinter(MatrixPrinter):
         self.sheet.write_comment(row, col, x)
 
 
+class DocxPrinter:
+
+    def make_rows_bold(*rows):
+        for row in rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+
+    def create_table(self, d: Document) -> Document:
+        table = d.add_table(1, cols=3, style="Table Grid")
+        table.allow_autofit = True
+        head_cells = table.rows[0].cells
+        for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
+            p = head_cells[i].paragraphs[0]
+            head_cells[i].text = item
+        DocxPrinter.make_rows_bold(table.rows[0])
+        return table
+
+    def normalize_date(self, a: datetime.date, b: datetime.date):
+        return "{0}.{1}.{2} - {3}.{4}.{5}".format(a.day, a.month, a.year, b.day, b.month, b.year)
+
+    def create_zip(self, m: Matrix):
+        folder_name = [x for x in sorted(m.releases_ever_known)]
+        working_path = os.getcwd()
+        if not os.path.exists(working_path+"/TFS_docx"):
+            os.mkdir("TFS_docx")
+        os.chdir(working_path+"/TFS_docx")
+        zippers = working_path+"/TFS_docx"
+
+        for x in folder_name:
+            if not os.path.exists(zippers+"/"+x):
+                os.mkdir(x)
+            os.chdir(zippers+"/"+x)
+            for y in m.rows:
+                if len(m.rows[y].releases[x]) > 0:
+                    docx = Document()
+                    table = self.create_table(docx)
+
+                    row_cells = table.add_row().cells
+                    min_date = datetime.date.max
+                    max_date = datetime.date.min
+                    for i in m.rows[y].releases[x]:
+                        row_cells[0].text += i.title+";\n"
+                        if (i.date_created < min_date):
+                            min_date = i.date_created
+                        if (i.date_closed > max_date):
+                            max_date = i.date_closed
+                    row_cells[1].text = self.normalize_date(min_date, max_date)
+                    row_cells[2].text = y
+
+                    docx.save("%s.docx" % (y))
+
+            os.chdir(zippers)
+
+        if not os.path.exists(zippers+"/Default"):
+            os.mkdir("Default")
+        os.chdir(zippers+"/Default")
+        for y in m.rows:
+            if len(m.rows[y].default) > 0:
+                 docx = Document()
+                 table = self.create_table(docx)
+
+                 row_cells = table.add_row().cells
+                 min_date = datetime.date.max
+                 max_date = datetime.date.min
+                 for i in m.rows[y].default:
+                     row_cells[0].text += i.title+";\n"
+                     if (i.date_created < min_date):
+                         min_date = i.date_created
+                     if (i.date_closed > max_date):
+                         max_date = i.date_closed
+                 row_cells[1].text = self.normalize_date(min_date, max_date)
+                 row_cells[2].text = y
+
+                 docx.save("%s.docx" % (y))
+        os.chdir(zippers)
+
+        with zipfile.ZipFile(working_path+"/TFS_zipped.zip", 'w', zipfile.ZIP_DEFLATED) as archive_file:
+            for dirpath, dirnames, filenames in os.walk(zippers):
+                for filename in filenames:
+                    file_path = os.path.join(dirpath, filename)
+                    archive_file_path = os.path.relpath(file_path, zippers)
+                    archive_file.write(file_path, archive_file_path)
+
+
 def main():
     a = parse_args()
 
@@ -428,6 +526,9 @@ def main():
 
     with ExcelPrinter(a.out, vars(a)["from"], vars(a)["to"]) as p:
         p.print(Matrix(i, a.names_reference))
+
+    test = DocxPrinter()
+    test.create_zip(Matrix(i, a.names_reference))
 
     if (a.open):
         if sys.platform in ("linux", "linux2"):
@@ -454,6 +555,8 @@ class TestAssigneeExtraction(unittest.TestCase):
     def test_cai_happyday(self):
         d = {'AssignedTo': 'Алексей Калюжный <CONTENT\\AKalyuzhny>',
              'Tags': '@Федор_Симашев; CC_12.8.0',
+             'CreatedDate': '2023-01-01',
+             'microsoft.vsts.common.closeddate': '2023-01-01',
              'Title': 'Test title'}
 
         class X(HandlerCai):
@@ -465,6 +568,8 @@ class TestAssigneeExtraction(unittest.TestCase):
     def test_cai_no_tags(self):
         d = {'AssignedTo': 'Алексей Калюжный <CONTENT\\AKalyuzhny>',
              'Tags': None,
+             'CreatedDate': '2023-01-01',
+             'microsoft.vsts.common.closeddate': '2023-01-01',
              'Title': 'Test title'}
 
         class X(HandlerCai):
@@ -476,6 +581,8 @@ class TestAssigneeExtraction(unittest.TestCase):
     def test_cai_hashtag(self):
         d = {'AssignedTo': 'Алексей Калюжный <CONTENT\\AKalyuzhny>',
              'Tags': '#Федор_Симашев; CC_12.8.0',
+             'CreatedDate': '2023-01-01',
+             'microsoft.vsts.common.closeddate': '2023-01-01',
              'Title': 'Test title'}
 
         class X(HandlerCai):
@@ -487,12 +594,15 @@ class TestAssigneeExtraction(unittest.TestCase):
     def test_assignee_doubling_case(self):
         d = {'AssignedTo': 'Федор Симашев <CONTENT\\Somestring>',
              'Tags': '#Федор_Симашев; CC_12.8.0',
-             'Title': 'Test title'}
+             'Title': 'Test title',
+             'CreatedDate': '2023-01-01',
+             'microsoft.vsts.common.closeddate': '2023-01-01'}
 
         class X(HandlerCai):
             def retrieve(self, pat, date_from, date_to):
                 return [MockWorkitem(d)]
-        self.assertEqual(X('', '', '').workitems[0].assignees, ['Федор Симашев'])
+        self.assertEqual(X('', '', '').workitems[0].assignees, [
+                         'Федор Симашев'])
 
 
 class TestReleaseExtraction(unittest.TestCase):
@@ -501,10 +611,15 @@ class TestReleaseExtraction(unittest.TestCase):
             def retrieve(self, pat, date_from, date_to):
                 d = {'AssignedTo': None,
                      'Tags': '@Федор_Симашев; Garbage',
+                     'CreatedDate': '2023-01-01',
+                     'microsoft.vsts.common.closeddate': '2023-01-01',
                      'Title': 'Test title'}
                 w = MockWorkitem(d)
                 w.parent = MockWorkitem(
-                    {'AssignedTo': '', 'Tags': 'CC_12.8.0', 'Title': 'T'})
+                    {'AssignedTo': '', 'Tags': 'CC_12.8.0',
+                     'CreatedDate': '2023-01-01',
+                     'microsoft.vsts.common.closeddate': '2023-01-01',
+                     'Title': 'T'})
                 return [w]
         self.assertEqual('CC_12.8.0', X('', '', '').workitems[0].release)
 
@@ -513,10 +628,15 @@ class TestReleaseExtraction(unittest.TestCase):
             def retrieve(self, pat, date_from, date_to):
                 d = {'AssignedTo': None,
                      'Tags': None,
+                     'CreatedDate': '2023-01-01',
+                     'microsoft.vsts.common.closeddate': '2023-01-01',
                      'Title': 'Test title'}
                 w = MockWorkitem(d)
                 w.parent = MockWorkitem(
-                    {'AssignedTo': '', 'Tags': 'CC_12.8.0', 'Title': 'T'})
+                    {'AssignedTo': '', 'Tags': 'CC_12.8.0',
+                     'CreatedDate': '2023-01-01',
+                     'microsoft.vsts.common.closeddate': '2023-01-01',
+                     'Title': 'T'})
                 return [w]
         self.assertEqual('CC_12.8.0', X('', '', '').workitems[0].release)
 
@@ -526,6 +646,8 @@ class TestReleaseExtraction(unittest.TestCase):
                 d = {'AssignedTo': None,
                      'Tags': '@Федор_Симашев; Garbage',
                      'Title': 'Test title',
+                     'CreatedDate': '2023-01-01',
+                     'microsoft.vsts.common.closeddate': '2023-01-01',
                      'system.areapath': 'AIS\\5.2'}
                 return [MockWorkitem(d)]
         self.assertEqual('IS_5.2', X('', '', '').workitems[0].release)
@@ -536,6 +658,8 @@ class TestReleaseExtraction(unittest.TestCase):
                 d = {'AssignedTo': None,
                      'Tags': '@Федор_Симашев; Garbage',
                      'Title': 'Test title',
+                     'CreatedDate': '2023-01-01',
+                     'microsoft.vsts.common.closeddate': '2023-01-01',
                      'system.iterationpath': 'Lingvo X6\\16.3.1'}
                 return [MockWorkitem(d)]
         self.assertEqual('LX6_16.3.1', X('', '', '').workitems[0].release)
