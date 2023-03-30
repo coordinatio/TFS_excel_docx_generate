@@ -532,7 +532,7 @@ def main():
 
     if (a.open):
         if sys.platform in ("linux", "linux2"):
-            subprocess.call(["xdg-open", a.out])
+            subprocess.call(["xdg-open", os.path.abspath(a.out)])
         else:
             print("--open works only on linux yet")
 
