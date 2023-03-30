@@ -79,7 +79,7 @@ def parse_args():
 
 
 class Task:
-    def __init__(self, title: str, assignees: List[str], release: str, link: str, date_created = None, date_closed=None) -> None:
+    def __init__(self, title: str, assignees: List[str], release: str, link: str, date_created=None, date_closed=None) -> None:
         self.title = title
         self.assignees = [x for x in sorted(set(assignees))]
         self.release = release
@@ -491,22 +491,22 @@ class DocxPrinter:
         os.chdir(zippers+"/Default")
         for y in m.rows:
             if len(m.rows[y].default) > 0:
-                 docx = Document()
-                 table = self.create_table(docx)
+                docx = Document()
+                table = self.create_table(docx)
 
-                 row_cells = table.add_row().cells
-                 min_date = datetime.date.max
-                 max_date = datetime.date.min
-                 for i in m.rows[y].default:
-                     row_cells[0].text += i.title+";\n"
-                     if (i.date_created < min_date):
-                         min_date = i.date_created
-                     if (i.date_closed > max_date):
-                         max_date = i.date_closed
-                 row_cells[1].text = self.normalize_date(min_date, max_date)
-                 row_cells[2].text = y
+                row_cells = table.add_row().cells
+                min_date = datetime.date.max
+                max_date = datetime.date.min
+                for i in m.rows[y].default:
+                    row_cells[0].text += i.title+";\n"
+                    if (i.date_created < min_date):
+                        min_date = i.date_created
+                    if (i.date_closed > max_date):
+                        max_date = i.date_closed
+                row_cells[1].text = self.normalize_date(min_date, max_date)
+                row_cells[2].text = y
 
-                 docx.save("%s.docx" % (y))
+                docx.save("%s.docx" % (y))
         os.chdir(zippers)
 
         with zipfile.ZipFile(working_path+"/TFS_zipped.zip", 'w', zipfile.ZIP_DEFLATED) as archive_file:
