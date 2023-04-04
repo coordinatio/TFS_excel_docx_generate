@@ -1,6 +1,6 @@
 ﻿.vs/*
 *.xlsx
 *.zip
-__pycache__/*
+*__pycache__*
 .cmd
 /TFS_docx

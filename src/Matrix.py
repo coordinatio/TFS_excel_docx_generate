@@ -1,0 +1,268 @@
+from typing import List, OrderedDict
+
+from xlsxwriter import Workbook
+
+from src.Handlers import Task
+
+# from docx import Document
+# import zipfile
+# import datetime
+
+
+class NameNormalizer:
+    def __init__(self, ref: dict) -> None:
+        self.dict = ref
+        self.vals = {x for x in ref.values()}
+
+    def normalize(self, s: str) -> tuple[str, bool]:
+        """returns (normalized name : str, if the name is known : bool)"""
+        if s in self.dict:
+            return (self.dict[s], True)
+        return (s, s in self.vals)
+
+
+class Matrix:
+    class AssigneeInfo:
+        def __init__(self, releases_ever_known: set, is_name_known: bool) -> None:
+            self.tasks_ttl = 0
+            self.releases = OrderedDict()
+            for r in releases_ever_known:
+                self.releases[r] = []
+            self.default = []  # here all not release related tasks go
+            self.name_known = is_name_known
+
+        def add_task(self, release: str, task: Task):
+            if release:
+                self.releases[release].append(task)
+            else:
+                self.default.append(task)
+            self.tasks_ttl += 1
+
+    def __init__(self, tasks: List, names_reference={}):
+        self.releases_ever_known = {t.release for t in tasks if t.release}
+        nn = NameNormalizer(names_reference)
+        self.rows = OrderedDict()
+        for t in tasks:
+            for a, k in OrderedDict([nn.normalize(x) for x in t.assignees]).items():
+                if a not in self.rows:
+                    self.rows[a] = Matrix.AssigneeInfo(
+                        self.releases_ever_known, k)
+                self.rows[a].add_task(t.release, t)
+        for x in [y for y in names_reference.values() if y not in self.rows]:
+            self.rows[x] = Matrix.AssigneeInfo(self.releases_ever_known, True)
+
+
+class MatrixPrinter:
+    msg_no_tasks = 'Нет задач за отчётный период, исправьте задачи в TFS и перегенерируйте отчёт.'
+    msg_person_unknown = 'Имя отсутствует в списках коррекции, сломается автоматизация у бухгалтеров.'
+
+    def print(self, m: Matrix):
+        header = [x for x in sorted(m.releases_ever_known)]
+        col = 0
+        for x in [''] + header + ['DEFAULT']:
+            self.brush(col, 0, x)
+            col += 1
+        row = 0
+        for y in m.rows:
+            col = 0
+            row += 1
+            if m.rows[y].tasks_ttl and m.rows[y].name_known:
+                self.brush(col, row, y)
+            else:
+                self.brush_highlight(col, row, y)
+                msg = []
+                if m.rows[y].tasks_ttl == 0:
+                    msg.append(MatrixPrinter.msg_no_tasks)
+                if not m.rows[y].name_known:
+                    msg.append(MatrixPrinter.msg_person_unknown)
+                self.brush_comment(col, row, "\n\n".join(msg))
+
+            for x in header:
+                col += 1
+                if m.rows[y].tasks_ttl == 0:
+                    self.brush_percent(col, row, 0)
+                else:
+                    self.brush_percent(col, row, len(
+                        m.rows[y].releases[x])/m.rows[y].tasks_ttl)
+                comment = ["%s: %s\n" % (t.title, t.link)
+                           for t in m.rows[y].releases[x]]
+                if comment:
+                    self.brush_comment(col, row, "\n".join(comment))
+            col += 1
+            if m.rows[y].tasks_ttl == 0:
+                self.brush_percent(col, row, 0)
+            else:
+                self.brush_percent(col, row, len(
+                    m.rows[y].default)/m.rows[y].tasks_ttl)
+            comment = ["%s: %s\n" % (t.title, t.link)
+                       for t in m.rows[y].default]
+            if comment:
+                self.brush_comment(col, row, "\n".join(comment))
+
+    def brush(self, col, row, x):
+        pass
+
+    def brush_percent(self, col, row, x):
+        self.brush(col, row, x)
+
+    def brush_highlight(self, col, row, x):
+        self.brush(col, row, x)
+
+    def brush_comment(self, col, row, x):
+        pass
+
+
+class ExcelPrinter(MatrixPrinter):
+    def __init__(self, filename: str, date_from: str, date_to: str) -> None:
+        self.filename = filename
+        self.d_from = date_from
+        self.d_to = date_to
+
+    def __enter__(self):
+        self.book = Workbook(self.filename)
+        self.sheet = self.book.add_worksheet(
+            f'с {self.d_from} до {self.d_to} вкл.')
+
+        self.fmt_percent = self.book.add_format()
+        self.fmt_percent.set_num_format('0.00%')
+
+        self.fmt_gray = self.book.add_format({'font_color': '#eeeeee'})
+        self.sheet.conditional_format(0, 0, 999, 999, {'type':     'cell',
+                                                       'criteria': '=',
+                                                       'value':    0,
+                                                       'format':   self.fmt_gray})
+
+        self.fmt_highlight = self.book.add_format({'bg_color': '#ffff7f'})
+        return self
+
+    def _helpsheet_write(self):
+        s = self.book.add_worksheet('КАК РАБОТАТЬ С ТАБЛИЦЕЙ')
+#      indent level, text
+        ls = ((0, "Краткая инструкция, как работать с этим отчётом:"),
+              (0, "1. Не редактируйте таблицу руками, вместо этого правьте задачи в TFS и перегенерируйте отчёт"),
+              (1, "Причина тут в том, что требуется, чтобы отчёты о распределении времени (эта табличка) соответствовали"),
+              (1, "служебным заданиям, которые генерируются так же автоматически на основе TFS. Поэтому требуется, чтобы "),
+              (1, "TFS, как первоисточник, содержал правильные данные."),
+              (0, "2. Если задача попала не в тот выпуск то в TFS это исправляется так:"),
+              (1, "+ Для задач в проекте HQ\\ContentAI:"),
+              (2, "Надо поставить тег выпуска (напр. FTW_13.3.7) на саму задачу или одного из её родителей вверх по иерархии."),
+              (1, "+ Для задач из проектов Lingvo или LingvoLive:"),
+              (2, "Надо поместить задачу в итерацию, соответствующую выпуску."),
+              (1, "+ Для задач из проекта NLC\\AIS:"),
+              (2, "Надо поместить задачу в area, соответствующую выпуску."),
+              (0, "3. Если вы обнаружили, что в отчёте лишние задачи (например не относящиеся к сделанной работе)"),
+              (1, "то вы можете поставить на них тег EXCLUDE_FROM_TIME_REPORTS и они перестанут попадать в отчёт."),
+              (0, "4. Если вы видите, что каких-то задач не хватает. (Опять %username% не перевёл сделанные задачи в Done)"),
+              (1, "то вы можете закрыть их и заполнить специальное поле 'Close Date Override', чтобы отнести их к нужному периоду"),
+              (1, "в поле нужно записывать дату в формате YYYY-MM-DD"),
+              (1, "(поле пока не добавлено в проекты Lingvo, уж больно их много, если поле будет там нужно — напишите Ивану В.)"),
+              (0, "5. Если вы видите, что не учтена задача, над которой работало несколько человек (например разработчик-тестировщик"),
+              (1, "или несколько разработчиков) то вам нужно на соответствующую задачу добавить тег вида #Имя_Фамилия недостающих авторов и "),
+              (1, "перегенерировать отчёт.")
+              )
+        for i, x in enumerate(ls):
+            s.write(i, x[0], x[1])
+
+    def __exit__(self, *args):
+        self.sheet.autofit()
+        self.sheet.freeze_panes(1, 1)
+        self._helpsheet_write()
+        self.book.close()
+
+    def brush(self, col, row, x):
+        self.sheet.write(row, col, x)
+
+    def brush_percent(self, col, row, x):
+        self.sheet.write(row, col, x, self.fmt_percent)
+
+    def brush_highlight(self, col, row, x):
+        self.sheet.write(row, col, x, self.fmt_highlight)
+
+    def brush_comment(self, col, row, x):
+        self.sheet.write_comment(row, col, x)
+
+
+# class DocxPrinter:
+
+#     def make_rows_bold(*rows):
+#         for row in rows:
+#             for cell in row.cells:
+#                 for paragraph in cell.paragraphs:
+#                     for run in paragraph.runs:
+#                         run.font.bold = True
+
+#     def create_table(self, d: Document) -> Document:
+#         table = d.add_table(1, cols=3, style="Table Grid")
+#         table.allow_autofit = True
+#         head_cells = table.rows[0].cells
+#         for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
+#             p = head_cells[i].paragraphs[0]
+#             head_cells[i].text = item
+#         DocxPrinter.make_rows_bold(table.rows[0])
+#         return table
+
+#     def normalize_date(self, a: datetime.date, b: datetime.date):
+#         return "{0}.{1}.{2} - {3}.{4}.{5}".format(a.day, a.month, a.year, b.day, b.month, b.year)
+
+#     def create_zip(self, m: Matrix):
+#         folder_name = [x for x in sorted(m.releases_ever_known)]
+#         working_path = os.getcwd()
+#         if not os.path.exists(working_path+"/TFS_docx"):
+#             os.mkdir("TFS_docx")
+#         os.chdir(working_path+"/TFS_docx")
+#         zippers = working_path+"/TFS_docx"
+
+#         for x in folder_name:
+#             if not os.path.exists(zippers+"/"+x):
+#                 os.mkdir(x)
+#             os.chdir(zippers+"/"+x)
+#             for y in m.rows:
+#                 if len(m.rows[y].releases[x]) > 0:
+#                     docx = Document()
+#                     table = self.create_table(docx)
+
+#                     row_cells = table.add_row().cells
+#                     min_date = datetime.date.max
+#                     max_date = datetime.date.min
+#                     for i in m.rows[y].releases[x]:
+#                         row_cells[0].text += i.title+";\n"
+#                         if (i.date_created < min_date):
+#                             min_date = i.date_created
+#                         if (i.date_closed > max_date):
+#                             max_date = i.date_closed
+#                     row_cells[1].text = self.normalize_date(min_date, max_date)
+#                     row_cells[2].text = y
+
+#                     docx.save("%s.docx" % (y))
+
+#             os.chdir(zippers)
+
+#         if not os.path.exists(zippers+"/Default"):
+#             os.mkdir("Default")
+#         os.chdir(zippers+"/Default")
+#         for y in m.rows:
+#             if len(m.rows[y].default) > 0:
+#                 docx = Document()
+#                 table = self.create_table(docx)
+
+#                 row_cells = table.add_row().cells
+#                 min_date = datetime.date.max
+#                 max_date = datetime.date.min
+#                 for i in m.rows[y].default:
+#                     row_cells[0].text += i.title+";\n"
+#                     if (i.date_created < min_date):
+#                         min_date = i.date_created
+#                     if (i.date_closed > max_date):
+#                         max_date = i.date_closed
+#                 row_cells[1].text = self.normalize_date(min_date, max_date)
+#                 row_cells[2].text = y
+
+#                 docx.save("%s.docx" % (y))
+#         os.chdir(zippers)
+
+#         with zipfile.ZipFile(working_path+"/TFS_zipped.zip", 'w', zipfile.ZIP_DEFLATED) as archive_file:
+#             for dirpath, dirnames, filenames in os.walk(zippers):
+#                 for filename in filenames:
+#                     file_path = os.path.join(dirpath, filename)
+#                     archive_file_path = os.path.relpath(file_path, zippers)
+#                     archive_file.write(file_path, archive_file_path)

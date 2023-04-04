@@ -1,0 +1,131 @@
+from unittest import TestCase
+
+from src.Handlers import Task
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer
+
+class TestMatrix(TestCase):
+    def test_happyday(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        m = Matrix([t1, t2])
+        self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
+        self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
+        self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
+
+    def test_name_normalization(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
+        m = Matrix([t1, t2, t3], {"Ptr": "Petr", "x": "y"})
+        self.assertEqual(m.rows['Petr'].tasks_ttl, 3)
+        self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
+        self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
+
+    def test_empty_assignee_control(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        m = Matrix([t1, t2], {"Ptr": "Petr", "x": "Empty", "y": "Empty"})
+        self.assertEqual(m.rows['Empty'].tasks_ttl, 0)
+
+    def test_same_assignee_several_times(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Ptr', 'Petr'], 'OMG_13.3.8', 'http://')
+        m = Matrix([t1, t2], {"Ptr": "Petr"})
+        self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
+
+
+class TestMatrixPrinter(TestCase):
+
+    class TestPrinter(MatrixPrinter):
+        def __init__(self) -> None:
+            self.paper = [['']]
+            self.paper_comments = [['']]
+            self.paper_highlights = [['']]
+
+        def brush(self, col, row, x):
+            TestMatrixPrinter.TestPrinter._print(self.paper, col, row, x)
+
+        def brush_comment(self, col, row, x):
+            TestMatrixPrinter.TestPrinter._print(
+                self.paper_comments, col, row, x)
+
+        def brush_highlight(self, col, row, x):
+            TestMatrixPrinter.TestPrinter._print(
+                self.paper_highlights, col, row, x)
+
+        @staticmethod
+        def _print(p, col, row, x):
+            if len(p) < col + 1:
+                p += [[''] for x in range(col + 1 - len(p))]
+            for i, l in enumerate(p):  # extend all rows
+                if len(l) < row + 1:
+                    p[i] += ['' for x in range(row + 1 - len(l))]
+            p[col][row] = x
+
+        # nicely print contents into string
+        def __str__(self) -> str:
+            out = ''
+            for row in range(len(self.paper[0])):
+                for col in range(len(self.paper)):
+                    out += "%s, " % self.paper[col][row]
+                out += '\n'
+            return out
+
+    def test_sheet(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2], {'P': 'Petr', 'F': 'Foma'}))
+        out = [['', 'Petr', 'Foma'],
+               ['FTW_13.3.7', 0.5, 0.0],
+               ['OMG_13.3.8', 0.5, 1.0],
+               ['DEFAULT', 0.0, 0.0]]
+        for i, col in enumerate(l.paper):
+            self.assertListEqual(out[i], col)
+
+    def test_comments(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2], {'x': 'A person with no tasks', 'y': 'Foma'}))
+        out = [['', MatrixPrinter.msg_person_unknown, '', MatrixPrinter.msg_no_tasks],
+               ['', 'A: http://A\n', '', ''],
+               ['', 'B: http://B\n', 'B: http://B\n', '']]
+        for i, col in enumerate(l.paper_comments):
+            self.assertListEqual(out[i], col)
+
+    def test_hightlights_if_no_tasks(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(
+            Matrix([t1, t2], {'P': 'Petr', 'F': 'Foma', 'x': 'Empty', 'y': 'Empty'}))
+        out = [['', '', '', 'Empty']]
+        for i, col in enumerate(l.paper_highlights):
+            self.assertListEqual(out[i], col)
+
+    def test_hightlights_if_new_name(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://A')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://B')
+        l = TestMatrixPrinter.TestPrinter()
+        l.print(Matrix([t1, t2], {'F': 'Foma', 'x': 'Empty', 'y': 'Empty'}))
+        out = [['', 'Petr', '', 'Empty']]
+        for i, col in enumerate(l.paper_highlights):
+            self.assertListEqual(out[i], col)
+
+    def test_excel_printer(self):
+        t1 = Task('Task 1 with very very long description like you can find in real life',
+                  ['Petr'], 'FTW_13.3.7', 'http://task1/adsfakjhdslfkjahdlskfjhaldsfhadf/adlskfj')
+        t2 = Task('Task 2', ['Sheph', 'Petr'], 'OMG_13.3.8', 'http://task2')
+        t3 = Task('Task 3 with very very long description like you can find in real life',
+                  ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
+        with ExcelPrinter('test_excel_printer.xlsx', '31-01-2023', '28-02-2023') as printer:
+            printer.print(Matrix([t1, t2, t3], {'x': 'Empty'}))
+
+
+class TestNameFilter(TestCase):
+    def test_filtration(self):
+        src = ['a', 'b']
+        nf = NameNormalizer({"a": "1", "b": "2", "c": "2"})
+        dst = [nf.normalize(x)[0] for x in src]
+        self.assertListEqual(['1', '2'], dst)
