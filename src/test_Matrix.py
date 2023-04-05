@@ -142,8 +142,8 @@ class TestMatrixPrinter(TestCase):
                ['', 'A: hA\n', 'Учтено 10% управленческих затрат времени на выпуск'],
                ['', 'C: hC\n', 'Учтено 10% управленческих затрат времени на выпуск'],
                ['', 'B: hB\n', 'Учтено 10% управленческих затрат времени на выпуск\nB: hB\n'],
-               ['', 'D: hD\n', 'Учтено 30% управленческих затрат времени']]
-        for i, col in enumerate(l.paper):
+               ['', 'D: hD\n', 'Учтено 30% управленческих затрат времени на выпуск']]
+        for i, col in enumerate(l.paper_comments):
             self.assertListEqual(out[i], col)
 
     def test_comments(self):

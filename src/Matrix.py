@@ -62,7 +62,10 @@ class MatrixPrinter:
                              num_tasks_ttl: int,
                              percents_preallocated_for_release: float,
                              percents_preallocated_ttl: float):
-        return percents_preallocated_for_release + (num_tasks_in_release / num_tasks_ttl) * (1 - percents_preallocated_ttl)
+        if num_tasks_ttl == 0:
+            return 0.0
+        x = percents_preallocated_for_release + (num_tasks_in_release / num_tasks_ttl) * (1 - percents_preallocated_ttl)
+        return round(x, 4)
 
     @staticmethod
     def count_releases_of_type(releases_ever_known: set[str], rtype: str) -> int:
@@ -97,7 +100,20 @@ class MatrixPrinter:
             self.assignees = {k: MatrixPrinter.PredefinedSpend.Metadata(v, releases_ever_known)
                               for k, v in predefined_spend.items()}
 
-    def print(self, m: Matrix, predefined_spend: Optional[Dict[str, Dict[str, float]]] = None):
+        def get_percents_predefined_for_release(self, person: str, release: str) -> float:
+            if person not in self.assignees:
+                return 0.0
+            return self.assignees[person].distribution[release]
+
+        def get_percents_preallocated_ttl(self, person: str) -> float:
+            if person not in self.assignees:
+                return 0.0
+            return self.assignees[person].ttl_percent
+
+
+    def print(self, m: Matrix, predefined_spend: Dict[str, Dict[str, float]] = {}):
+        ps = MatrixPrinter.PredefinedSpend(
+            predefined_spend, m.releases_ever_known)
         header = [x for x in sorted(m.releases_ever_known)]
         col = 0
         # печатаем первую строку, где выпуски
@@ -123,26 +139,32 @@ class MatrixPrinter:
             # теперь идём по выпускам и печатаем, сколько там задач в %
             for x in header:
                 col += 1
-                if m.rows[y].tasks_ttl == 0:
+                p = MatrixPrinter.get_release_percents(
+                    len(m.rows[y].releases[x]),
+                    m.rows[y].tasks_ttl,
+                    ps.get_percents_predefined_for_release(y, x),
+                    ps.get_percents_preallocated_ttl(y))
+                if p < 0.0001:
                     self.brush_percent(col, row, 0)
                 else:
-                    self.brush_percent(col, row, len(
-                        m.rows[y].releases[x])/m.rows[y].tasks_ttl)
-                comment = ["%s: %s\n" % (t.title, t.link)
-                           for t in m.rows[y].releases[x]]
+                    self.brush_percent(col, row, p)
+                comment = MatrixPrinter.get_release_comment(ps.get_percents_predefined_for_release(y, x), m.rows[y].releases[x])
                 if comment:
-                    self.brush_comment(col, row, "\n".join(comment))
+                    self.brush_comment(col, row, comment)
             # печатаем ячейку, соответствующую задачам не попавшим ни в один выпуск
             col += 1
-            if m.rows[y].tasks_ttl == 0:
+            p = MatrixPrinter.get_release_percents(
+                    len(m.rows[y].default),
+                    m.rows[y].tasks_ttl,
+                    ps.get_percents_predefined_for_release(y, 'DEFAULT'),
+                    ps.get_percents_preallocated_ttl(y))
+            if p < 0.0001:
                 self.brush_percent(col, row, 0)
             else:
-                self.brush_percent(col, row, len(
-                    m.rows[y].default)/m.rows[y].tasks_ttl)
-            comment = ["%s: %s\n" % (t.title, t.link)
-                       for t in m.rows[y].default]
+                self.brush_percent(col, row, p)
+            comment = MatrixPrinter.get_release_comment(ps.get_percents_predefined_for_release(y, 'DEFAULT'), m.rows[y].default)
             if comment:
-                self.brush_comment(col, row, "\n".join(comment))
+                self.brush_comment(col, row, comment)
 
     def brush(self, col, row, x):
         pass
