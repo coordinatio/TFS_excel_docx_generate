@@ -3,6 +3,7 @@ from unittest import TestCase
 from src.Handlers import Task
 from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer
 
+
 class TestMatrix(TestCase):
     def test_happyday(self):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
@@ -80,6 +81,38 @@ class TestMatrixPrinter(TestCase):
                ['FTW_13.3.7', 0.5, 0.0],
                ['OMG_13.3.8', 0.5, 1.0],
                ['DEFAULT', 0.0, 0.0]]
+        for i, col in enumerate(l.paper):
+            self.assertListEqual(out[i], col)
+
+    def test_predefined_proj_spend(self):
+        tsks = [Task('A', ['Petr'], 'FTW_13.3.7', ''),
+                Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', ''),
+                Task('C', ['P'], 'FTW_14.0.0', ''),
+                Task('D', ['P'], '', '')]
+        l = TestMatrixPrinter.TestPrinter()
+        predefined = {'Foma': {'OMG': 0.1, 'FTW': 0.2, 'DEFAULT': 0.3}}
+        l.print(Matrix(tsks, {'P': 'Petr', 'F': 'Foma'}), predefined)
+        out = [['',          'Petr', 'Foma'],
+               ['FTW_13.3.7', 0.25,   0.1],
+               ['FTW_14.0.0', 0.25,   0.1],
+               ['OMG_13.3.8', 0.25,   0.5],
+               ['DEFAULT',    0.25,   0.3]]
+        for i, col in enumerate(l.paper):
+            self.assertListEqual(out[i], col)
+
+    def test_predefined_proj_spend_comments(self):
+        tsks = [Task('A', ['Petr'], 'FTW_13.3.7', 'hA'),
+                Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'hB'),
+                Task('C', ['P'], 'FTW_14.0.0', 'hC'),
+                Task('D', ['P'], '', 'hD')]
+        l = TestMatrixPrinter.TestPrinter()
+        predefined = {'Foma': {'OMG': 0.1, 'FTW': 0.2, 'DEFAULT': 0.3}}
+        l.print(Matrix(tsks, {'P': 'Petr', 'F': 'Foma'}), predefined)
+        out = [['', '',        ''],
+               ['', 'A: hA\n', 'Учтено 20% управленческих затрат времени на все выпуски FTW'],
+               ['', 'C: hC\n', 'Учтено 20% управленческих затрат времени на все выпуски FTW'],
+               ['', 'B: hB\n', 'Учтено 10% управленческих затрат времени на все выпуски OMG\nB: hB\n'],
+               ['', 'D: hD\n', 'Учтено 30% управленческих затрат времени']]
         for i, col in enumerate(l.paper):
             self.assertListEqual(out[i], col)
 

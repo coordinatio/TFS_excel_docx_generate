@@ -1,4 +1,4 @@
-from typing import List, OrderedDict
+from typing import List, OrderedDict, Dict, Optional
 
 from xlsxwriter import Workbook
 
@@ -56,16 +56,19 @@ class MatrixPrinter:
     msg_no_tasks = 'Нет задач за отчётный период, исправьте задачи в TFS и перегенерируйте отчёт.'
     msg_person_unknown = 'Имя отсутствует в списках коррекции, сломается автоматизация у бухгалтеров.'
 
-    def print(self, m: Matrix):
+    def print(self, m: Matrix, predefined_spend: Optional[Dict[str, Dict[str, float]]] = None):
         header = [x for x in sorted(m.releases_ever_known)]
         col = 0
+        # печатаем первую строку, где выпуски
         for x in [''] + header + ['DEFAULT']:
             self.brush(col, 0, x)
             col += 1
         row = 0
+        # идём по строкам
         for y in m.rows:
             col = 0
             row += 1
+            # сначала пропечатываем имя человека
             if m.rows[y].tasks_ttl and m.rows[y].name_known:
                 self.brush(col, row, y)
             else:
@@ -76,7 +79,7 @@ class MatrixPrinter:
                 if not m.rows[y].name_known:
                     msg.append(MatrixPrinter.msg_person_unknown)
                 self.brush_comment(col, row, "\n\n".join(msg))
-
+            # теперь идём по выпускам и печатаем, сколько там задач в %
             for x in header:
                 col += 1
                 if m.rows[y].tasks_ttl == 0:
@@ -88,6 +91,7 @@ class MatrixPrinter:
                            for t in m.rows[y].releases[x]]
                 if comment:
                     self.brush_comment(col, row, "\n".join(comment))
+            # печатаем ячейку, соответствующую задачам не попавшим ни в один выпуск
             col += 1
             if m.rows[y].tasks_ttl == 0:
                 self.brush_percent(col, row, 0)
