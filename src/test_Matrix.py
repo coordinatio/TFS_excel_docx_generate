@@ -46,23 +46,33 @@ class TestMatrix(TestCase):
         self.assertEqual(0, MatrixPrinter.count_releases_of_type(s, 'XXX'))
 
     def test_cell_comments_generator(self):
-        s =  MatrixPrinter.msg_control_spends % 20
+        s = MatrixPrinter.msg_control_spends % 20
         self.assertEqual(s, MatrixPrinter.get_release_comment(0.2, []))
 
         s = f"{MatrixPrinter.msg_control_spends % 10}\nA: hA\n"
         t = Task('A', ['Petr'], 'FTW_13.3.7', 'hA')
         self.assertEqual(s, MatrixPrinter.get_release_comment(0.1, [t]))
 
+
 class TestPredefinedSpend(TestCase):
 
     def test_happyday(self):
         r = {'FTW_13.3.7', 'FTW_14.0.0', 'OMG_15.0.0'}
-        ps = {'Fedor' : {'FTW': 0.2, 'DEFAULT': 0.3}}
+        ps = {'Fedor': {'FTW': 0.2, 'DEFAULT': 0.3}}
         p = MatrixPrinter.PredefinedSpend(ps, r)
-        self.assertAlmostEqual(0.5, p.assignees['Fedor'].ttl_percent)
-        self.assertAlmostEqual(0.1, p.assignees['Fedor'].distribution['FTW_13.3.7'])
-        d = {'FTW_13.3.7': 0.1, 'FTW_14.0.0': 0.1, 'OMG_15.0.0': 0.0, 'DEFAULT': 0.3}
+        self.assertAlmostEqual(0.5, p.get_percents_preallocated_ttl('Fedor'))
+        self.assertAlmostEqual(
+            0.1, p.get_percents_predefined_for_release('Fedor', 'FTW_13.3.7'))
+        d = {'FTW_13.3.7': 0.1, 'FTW_14.0.0': 0.1,
+             'OMG_15.0.0': 0.0, 'DEFAULT': 0.3}
         self.assertDictEqual(d, p.assignees['Fedor'].distribution)
+
+    def test_default_handling(self):
+        r = {'FTW_13.3.7', 'FTW_14.0.0', 'OMG_15.0.0'}
+        ps = {'Fedor': {'FTW': 0.2}}
+        p = MatrixPrinter.PredefinedSpend(ps, r)
+        self.assertAlmostEqual(
+            0.0, p.get_percents_predefined_for_release('Fedor', 'DEFAULT'))
 
 
 class TestMatrixPrinter(TestCase):
@@ -114,18 +124,19 @@ class TestMatrixPrinter(TestCase):
         for i, col in enumerate(l.paper):
             self.assertListEqual(out[i], col)
 
+
     def test_predefined_proj_spend(self):
-        tsks = [Task('A', ['Petr'], 'FTW_13.3.7', ''),
-                Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', ''),
-                Task('C', ['P'], 'FTW_14.0.0', ''),
+        tsks = [Task('A', ['Petr'], 'CRS_13.3.7', ''),
+                Task('B', ['Foma', 'Petr'], 'CR_13.3.8', ''),
+                Task('C', ['P'], 'CRS_14.0.0', ''),
                 Task('D', ['P'], '', '')]
         l = TestMatrixPrinter.TestPrinter()
-        predefined = {'Foma': {'OMG': 0.1, 'FTW': 0.2, 'DEFAULT': 0.3}}
+        predefined = {'Foma': {'CR': 0.1, 'CRS': 0.2, 'DEFAULT': 0.3, 'WTF': 0.3}}
         l.print(Matrix(tsks, {'P': 'Petr', 'F': 'Foma'}), predefined)
         out = [['',          'Petr', 'Foma'],
-               ['FTW_13.3.7', 0.25,   0.1],
-               ['FTW_14.0.0', 0.25,   0.1],
-               ['OMG_13.3.8', 0.25,   0.5],
+               ['CRS_13.3.7', 0.25,   0.1],
+               ['CRS_14.0.0', 0.25,   0.1],
+               ['CR_13.3.8',  0.25,   0.5],
                ['DEFAULT',    0.25,   0.3]]
         for i, col in enumerate(l.paper):
             self.assertListEqual(out[i], col)
@@ -182,8 +193,9 @@ class TestMatrixPrinter(TestCase):
         t2 = Task('Task 2', ['Sheph', 'Petr'], 'OMG_13.3.8', 'http://task2')
         t3 = Task('Task 3 with very very long description like you can find in real life',
                   ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
+        predef_spend = {'Sheph': {'FTW': 0.4, 'DEFAULT': 0.2}}
         with ExcelPrinter('test_excel_printer.xlsx', '31-01-2023', '28-02-2023') as printer:
-            printer.print(Matrix([t1, t2, t3], {'x': 'Empty'}))
+            printer.print(Matrix([t1, t2, t3], {'x': 'Empty'}), predef_spend)
 
 
 class TestNameFilter(TestCase):

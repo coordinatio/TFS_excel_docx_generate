@@ -65,7 +65,7 @@ class MatrixPrinter:
         if num_tasks_ttl == 0:
             return 0.0
         x = percents_preallocated_for_release + (num_tasks_in_release / num_tasks_ttl) * (1 - percents_preallocated_ttl)
-        return round(x, 4)
+        return round(x, 7)
 
     @staticmethod
     def count_releases_of_type(releases_ever_known: set[str], rtype: str) -> int:
@@ -85,23 +85,23 @@ class MatrixPrinter:
     class PredefinedSpend:
         class Metadata:
             def __init__(self, distribution: Dict[str, float], releases_ever_known: set[str]) -> None:
-                self.ttl_percent = sum([v for k, v in distribution.items()])
                 self.distribution = {}
                 for d, p in distribution.items():
-                    l = len([x for x in releases_ever_known if x.startswith(d)])
+                    l = len([x for x in releases_ever_known if x.startswith(f'{d}_')])
                     self.distribution.update(
-                        {r: p/l for r in releases_ever_known if r.startswith(d)})
+                        {r: p/l for r in releases_ever_known if r.startswith(f'{d}_')})
                 self.distribution.update(
                     {r: 0.0 for r in releases_ever_known if r not in self.distribution})
                 if 'DEFAULT' in distribution:
                     self.distribution['DEFAULT'] = distribution['DEFAULT']
+                self.ttl_percent = sum([v for k, v in self.distribution.items()])
 
         def __init__(self, predefined_spend: Dict[str, Dict[str, float]], releases_ever_known: set[str]) -> None:
             self.assignees = {k: MatrixPrinter.PredefinedSpend.Metadata(v, releases_ever_known)
                               for k, v in predefined_spend.items()}
 
         def get_percents_predefined_for_release(self, person: str, release: str) -> float:
-            if person not in self.assignees:
+            if person not in self.assignees or release not in self.assignees[person].distribution:
                 return 0.0
             return self.assignees[person].distribution[release]
 

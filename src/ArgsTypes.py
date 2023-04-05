@@ -34,6 +34,23 @@ class ArgsTypes:
         return j
 
     @staticmethod
+    def arg_predefined_spend_file(path_to_file: str) -> dict:
+        """reads file, parses json, validates contents"""
+        j = {}
+        if not path_to_file:
+            return j
+        if not path.exists(path_to_file):
+            raise ArgumentTypeError(
+                "Predefined spend file %s does not exist" % path_to_file)
+        try:
+            with open(path_to_file, 'r', encoding="utf-8") as f:
+                j = loads(f.read())
+        except:
+            raise ArgumentTypeError(
+                "%s contains invalid json" % path_to_file)
+        return j
+
+    @staticmethod
     def arg_date(i: str) -> str:
         d = ('-', '.', '/', ' ')
         for x in d:
@@ -65,4 +82,8 @@ def parse_args():
                         default='name_filter.json', metavar='./A_SPECIAL_FILE.json',
                         help=("Path to the file containing json with name pairs. "
                               "Defaults to 'name_filter.json'."))
+    parser.add_argument('--predefined_spend', type=ArgsTypes.arg_predefined_spend_file,
+                        default='predefined_spend.json', metavar='./A_SPECIAL_FILE.json',
+                        help=("Path to the file containing json with predefined spend info. "
+                              "Defaults to 'predefined_spend.json'."))
     return parser.parse_args()
