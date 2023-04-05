@@ -34,6 +34,36 @@ class TestMatrix(TestCase):
         m = Matrix([t1, t2], {"Ptr": "Petr"})
         self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
 
+    def test_release_percents_calculation(self):
+        self.assertAlmostEqual(
+            0.1, MatrixPrinter.get_release_percents(0, 1, 0.1, 0.6))
+        self.assertAlmostEqual(
+            0.5, MatrixPrinter.get_release_percents(1, 1, 0.1, 0.6))
+
+    def test_count_releases_of_type(self):
+        s = {'FTW_13.3.7', 'FTW_14.0.0', 'OMG_15.2.3'}
+        self.assertEqual(2, MatrixPrinter.count_releases_of_type(s, 'FTW'))
+        self.assertEqual(0, MatrixPrinter.count_releases_of_type(s, 'XXX'))
+
+    def test_cell_comments_generator(self):
+        s =  MatrixPrinter.msg_control_spends % 20
+        self.assertEqual(s, MatrixPrinter.get_release_comment(0.2, []))
+
+        s = f"{MatrixPrinter.msg_control_spends % 10}\nA: hA\n"
+        t = Task('A', ['Petr'], 'FTW_13.3.7', 'hA')
+        self.assertEqual(s, MatrixPrinter.get_release_comment(0.1, [t]))
+
+class TestPredefinedSpend(TestCase):
+
+    def test_happyday(self):
+        r = {'FTW_13.3.7', 'FTW_14.0.0', 'OMG_15.0.0'}
+        ps = {'Fedor' : {'FTW': 0.2, 'DEFAULT': 0.3}}
+        p = MatrixPrinter.PredefinedSpend(ps, r)
+        self.assertAlmostEqual(0.5, p.assignees['Fedor'].ttl_percent)
+        self.assertAlmostEqual(0.1, p.assignees['Fedor'].distribution['FTW_13.3.7'])
+        d = {'FTW_13.3.7': 0.1, 'FTW_14.0.0': 0.1, 'OMG_15.0.0': 0.0, 'DEFAULT': 0.3}
+        self.assertDictEqual(d, p.assignees['Fedor'].distribution)
+
 
 class TestMatrixPrinter(TestCase):
 
@@ -109,9 +139,9 @@ class TestMatrixPrinter(TestCase):
         predefined = {'Foma': {'OMG': 0.1, 'FTW': 0.2, 'DEFAULT': 0.3}}
         l.print(Matrix(tsks, {'P': 'Petr', 'F': 'Foma'}), predefined)
         out = [['', '',        ''],
-               ['', 'A: hA\n', 'Учтено 20% управленческих затрат времени на все выпуски FTW'],
-               ['', 'C: hC\n', 'Учтено 20% управленческих затрат времени на все выпуски FTW'],
-               ['', 'B: hB\n', 'Учтено 10% управленческих затрат времени на все выпуски OMG\nB: hB\n'],
+               ['', 'A: hA\n', 'Учтено 10% управленческих затрат времени на выпуск'],
+               ['', 'C: hC\n', 'Учтено 10% управленческих затрат времени на выпуск'],
+               ['', 'B: hB\n', 'Учтено 10% управленческих затрат времени на выпуск\nB: hB\n'],
                ['', 'D: hD\n', 'Учтено 30% управленческих затрат времени']]
         for i, col in enumerate(l.paper):
             self.assertListEqual(out[i], col)

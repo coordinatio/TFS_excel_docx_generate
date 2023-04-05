@@ -55,6 +55,47 @@ class Matrix:
 class MatrixPrinter:
     msg_no_tasks = 'Нет задач за отчётный период, исправьте задачи в TFS и перегенерируйте отчёт.'
     msg_person_unknown = 'Имя отсутствует в списках коррекции, сломается автоматизация у бухгалтеров.'
+    msg_control_spends = 'Учтено %.0f%% управленческих затрат времени на выпуск'
+
+    @staticmethod
+    def get_release_percents(num_tasks_in_release: int,
+                             num_tasks_ttl: int,
+                             percents_preallocated_for_release: float,
+                             percents_preallocated_ttl: float):
+        return percents_preallocated_for_release + (num_tasks_in_release / num_tasks_ttl) * (1 - percents_preallocated_ttl)
+
+    @staticmethod
+    def count_releases_of_type(releases_ever_known: set[str], rtype: str) -> int:
+        return len([x for x in releases_ever_known if x.startswith(f"{rtype}_")])
+
+    @staticmethod
+    def get_release_comment(percents_predefined_for_release: float, tasks: List[Task]) -> str:
+        s = '\n'.join(['%s: %s\n' % (t.title, t.link) for t in tasks])
+        if percents_predefined_for_release < 0.00001:  # almost zero
+            return s
+        m = MatrixPrinter.msg_control_spends % (
+            percents_predefined_for_release*100)
+        if s:
+            return f"{m}\n{s}"
+        return m
+
+    class PredefinedSpend:
+        class Metadata:
+            def __init__(self, distribution: Dict[str, float], releases_ever_known: set[str]) -> None:
+                self.ttl_percent = sum([v for k, v in distribution.items()])
+                self.distribution = {}
+                for d, p in distribution.items():
+                    l = len([x for x in releases_ever_known if x.startswith(d)])
+                    self.distribution.update(
+                        {r: p/l for r in releases_ever_known if r.startswith(d)})
+                self.distribution.update(
+                    {r: 0.0 for r in releases_ever_known if r not in self.distribution})
+                if 'DEFAULT' in distribution:
+                    self.distribution['DEFAULT'] = distribution['DEFAULT']
+
+        def __init__(self, predefined_spend: Dict[str, Dict[str, float]], releases_ever_known: set[str]) -> None:
+            self.assignees = {k: MatrixPrinter.PredefinedSpend.Metadata(v, releases_ever_known)
+                              for k, v in predefined_spend.items()}
 
     def print(self, m: Matrix, predefined_spend: Optional[Dict[str, Dict[str, float]]] = None):
         header = [x for x in sorted(m.releases_ever_known)]
