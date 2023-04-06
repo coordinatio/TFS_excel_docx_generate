@@ -1,4 +1,5 @@
-from typing import List, OrderedDict, Dict, Optional
+from typing import List, OrderedDict, Dict
+from math import fsum
 
 from xlsxwriter import Workbook
 
@@ -100,7 +101,7 @@ class MatrixPrinter:
                     {r: 0.0 for r in releases_ever_known if r not in self.distribution})
                 if 'DEFAULT' in distribution:
                     self.distribution['DEFAULT'] = distribution['DEFAULT']
-                self.ttl_percent = sum(
+                self.ttl_percent = fsum(
                     [v for k, v in self.distribution.items()])
 
         def __init__(self, predefined_spend: Dict[str, Dict[str, float]], releases_ever_known: set[str]) -> None:

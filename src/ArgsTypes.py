@@ -2,6 +2,8 @@ from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 from json import loads
 from os import path
+from typing import Dict
+from math import fsum
 
 
 class ArgsTypes:
@@ -34,6 +36,21 @@ class ArgsTypes:
         return j
 
     @staticmethod
+    def validate_predefind_spend_file(d: dict):
+        msg = 'Predefined spend json has incorrect structure, must be {str: {str: float}}'
+        if type(d) is not dict:
+            raise ArgumentTypeError(msg)
+        for k in d:
+            if type(k) is not str or type(d[k]) is not dict:
+                raise ArgumentTypeError(msg)
+            for x in d[k]:
+                if type(x) is not str or type(d[k][x]) is not float:
+                    raise ArgumentTypeError(msg)
+            prealloc_ttl = fsum([w for _, w in d[k].items()])
+            if prealloc_ttl >= 1:
+                raise ArgumentTypeError("It is allowed to preallocate strictly less than 100%")
+
+    @staticmethod
     def arg_predefined_spend_file(path_to_file: str) -> dict:
         """reads file, parses json, validates contents"""
         j = {}
@@ -48,6 +65,7 @@ class ArgsTypes:
         except:
             raise ArgumentTypeError(
                 "%s contains invalid json" % path_to_file)
+        ArgsTypes.validate_predefind_spend_file(j)
         return j
 
     @staticmethod
