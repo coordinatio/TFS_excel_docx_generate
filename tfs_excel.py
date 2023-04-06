@@ -16,7 +16,7 @@ def main():
         i += x(a.pat, vars(a)["from"], vars(a)["to"]).workitems
 
     with ExcelPrinter(a.out, vars(a)["from"], vars(a)["to"]) as p:
-        p.print(Matrix(i, a.names_reference))
+        p.print(Matrix(i, a.names_reference), a.predefined_spend)
 
     # test = DocxPrinter()
     # test.create_zip(Matrix(i, a.names_reference))

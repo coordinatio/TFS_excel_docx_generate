@@ -24,3 +24,19 @@ class TestNamesReferenceValidator(TestCase):
         j = '["a", "s"]'
         with self.assertRaises(ArgumentTypeError):
             ArgsTypes.validate_names_reference(loads(j))
+
+
+class TestPredefinedSpendValidator(TestCase):
+    def test_valid(self):
+        j = '{"X": {"QWE": 0.1, "ASD": 0.2}, "Y": {"ZXC": 0.7}}'
+        ArgsTypes.validate_predefind_spend_file(loads(j))
+
+    def test_invalid1(self):
+        j = '{"a" : "b", "s" : {"x" : "y"}}'
+        with self.assertRaises(ArgumentTypeError):
+            ArgsTypes.validate_predefind_spend_file(loads(j))
+
+    def test_overflow(self):
+        j = '{"X": {"QWE": 0.9, "ASD": 0.2}, "Y": {"ZXC": 0.7}}'
+        with self.assertRaises(ArgumentTypeError):
+            ArgsTypes.validate_predefind_spend_file(loads(j))
