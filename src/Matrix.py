@@ -62,9 +62,14 @@ class MatrixPrinter:
                              num_tasks_ttl: int,
                              percents_preallocated_for_release: float,
                              percents_preallocated_ttl: float):
+        x = 0.0
         if num_tasks_ttl == 0:
-            return 0.0
-        x = percents_preallocated_for_release + (num_tasks_in_release / num_tasks_ttl) * (1 - percents_preallocated_ttl)
+            if percents_preallocated_ttl > 0.0001:
+                x = percents_preallocated_for_release / percents_preallocated_ttl
+        else:
+            x = percents_preallocated_for_release + \
+                (num_tasks_in_release / num_tasks_ttl) * \
+                (1 - percents_preallocated_ttl)
         return round(x, 7)
 
     @staticmethod
@@ -87,14 +92,16 @@ class MatrixPrinter:
             def __init__(self, distribution: Dict[str, float], releases_ever_known: set[str]) -> None:
                 self.distribution = {}
                 for d, p in distribution.items():
-                    l = len([x for x in releases_ever_known if x.startswith(f'{d}_')])
+                    l = len(
+                        [x for x in releases_ever_known if x.startswith(f'{d}_')])
                     self.distribution.update(
                         {r: p/l for r in releases_ever_known if r.startswith(f'{d}_')})
                 self.distribution.update(
                     {r: 0.0 for r in releases_ever_known if r not in self.distribution})
                 if 'DEFAULT' in distribution:
                     self.distribution['DEFAULT'] = distribution['DEFAULT']
-                self.ttl_percent = sum([v for k, v in self.distribution.items()])
+                self.ttl_percent = sum(
+                    [v for k, v in self.distribution.items()])
 
         def __init__(self, predefined_spend: Dict[str, Dict[str, float]], releases_ever_known: set[str]) -> None:
             self.assignees = {k: MatrixPrinter.PredefinedSpend.Metadata(v, releases_ever_known)
@@ -109,7 +116,6 @@ class MatrixPrinter:
             if person not in self.assignees:
                 return 0.0
             return self.assignees[person].ttl_percent
-
 
     def print(self, m: Matrix, predefined_spend: Dict[str, Dict[str, float]] = {}):
         ps = MatrixPrinter.PredefinedSpend(
@@ -148,21 +154,24 @@ class MatrixPrinter:
                     self.brush_percent(col, row, 0)
                 else:
                     self.brush_percent(col, row, p)
-                comment = MatrixPrinter.get_release_comment(ps.get_percents_predefined_for_release(y, x), m.rows[y].releases[x])
+                comment = MatrixPrinter.get_release_comment(
+                    ps.get_percents_predefined_for_release(y, x),
+                    m.rows[y].releases[x])
                 if comment:
                     self.brush_comment(col, row, comment)
             # печатаем ячейку, соответствующую задачам не попавшим ни в один выпуск
             col += 1
             p = MatrixPrinter.get_release_percents(
-                    len(m.rows[y].default),
-                    m.rows[y].tasks_ttl,
-                    ps.get_percents_predefined_for_release(y, 'DEFAULT'),
-                    ps.get_percents_preallocated_ttl(y))
+                len(m.rows[y].default),
+                m.rows[y].tasks_ttl,
+                ps.get_percents_predefined_for_release(y, 'DEFAULT'),
+                ps.get_percents_preallocated_ttl(y))
             if p < 0.0001:
                 self.brush_percent(col, row, 0)
             else:
                 self.brush_percent(col, row, p)
-            comment = MatrixPrinter.get_release_comment(ps.get_percents_predefined_for_release(y, 'DEFAULT'), m.rows[y].default)
+            comment = MatrixPrinter.get_release_comment(
+                ps.get_percents_predefined_for_release(y, 'DEFAULT'), m.rows[y].default)
             if comment:
                 self.brush_comment(col, row, comment)
 

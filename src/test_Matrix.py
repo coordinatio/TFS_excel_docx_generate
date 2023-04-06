@@ -35,10 +35,12 @@ class TestMatrix(TestCase):
         self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
 
     def test_release_percents_calculation(self):
-        self.assertAlmostEqual(
+        self.assertAlmostEqual(  # the simplest case
             0.1, MatrixPrinter.get_release_percents(0, 1, 0.1, 0.6))
-        self.assertAlmostEqual(
+        self.assertAlmostEqual(  # additional tasks done for the release
             0.5, MatrixPrinter.get_release_percents(1, 1, 0.1, 0.6))
+        self.assertAlmostEqual(  # only predefined spend is present
+            0.5, MatrixPrinter.get_release_percents(0, 0, 0.3, 0.6))
 
     def test_count_releases_of_type(self):
         s = {'FTW_13.3.7', 'FTW_14.0.0', 'OMG_15.2.3'}
@@ -124,14 +126,14 @@ class TestMatrixPrinter(TestCase):
         for i, col in enumerate(l.paper):
             self.assertListEqual(out[i], col)
 
-
     def test_predefined_proj_spend(self):
         tsks = [Task('A', ['Petr'], 'CRS_13.3.7', ''),
                 Task('B', ['Foma', 'Petr'], 'CR_13.3.8', ''),
                 Task('C', ['P'], 'CRS_14.0.0', ''),
                 Task('D', ['P'], '', '')]
         l = TestMatrixPrinter.TestPrinter()
-        predefined = {'Foma': {'CR': 0.1, 'CRS': 0.2, 'DEFAULT': 0.3, 'WTF': 0.3}}
+        predefined = {
+            'Foma': {'CR': 0.1, 'CRS': 0.2, 'DEFAULT': 0.3, 'WTF': 0.3}}
         l.print(Matrix(tsks, {'P': 'Petr', 'F': 'Foma'}), predefined)
         out = [['',          'Petr', 'Foma'],
                ['CRS_13.3.7', 0.25,   0.1],
@@ -140,6 +142,27 @@ class TestMatrixPrinter(TestCase):
                ['DEFAULT',    0.25,   0.3]]
         for i, col in enumerate(l.paper):
             self.assertListEqual(out[i], col)
+
+    def test_predefined_proj_taskless_case(self):
+        tsks = [Task('A', ['Petr'], 'CRS_13.3.7', ''),
+                Task('B', ['Foma', 'Petr'], 'CR_13.3.8', ''),
+                Task('C', ['P'], 'CRS_14.0.0', ''),
+                Task('D', ['P'], '', '')]
+        l = TestMatrixPrinter.TestPrinter()
+        predefined = {'Fedor': {'CR': 0.1,
+                                'CRS': 0.2, 'DEFAULT': 0.3, 'WTF': 0.3}}
+        l.print(
+            Matrix(tsks, {'P': 'Petr', 'Fo': 'Foma', 'Fe': 'Fedor'}), predefined)
+        out = [['',          'Petr', 'Foma', ''],
+               ['CRS_13.3.7', 0.25,   0,      0.1666667],
+               ['CRS_14.0.0', 0.25,   0,      0.1666667],
+               ['CR_13.3.8',  0.25,   1,      0.1666667],
+               ['DEFAULT',    0.25,   0,      0.5]]
+        out_h = [['', '', '', 'Fedor']]
+        for i, col in enumerate(l.paper):
+            self.assertListEqual(out[i], col)
+        for i, col in enumerate(l.paper_highlights):
+            self.assertListEqual(out_h[i], col)
 
     def test_predefined_proj_spend_comments(self):
         tsks = [Task('A', ['Petr'], 'FTW_13.3.7', 'hA'),
