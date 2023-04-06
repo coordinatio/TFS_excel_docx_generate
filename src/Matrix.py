@@ -104,7 +104,7 @@ class MatrixPrinter:
         m = MatrixPrinter.msg_control_spends % (
             percents_predefined_for_release*100)
         if s:
-            return f"{m}\n{s}"
+            return f"{m}\n\n{s}"
         return m
 
     class PredefinedSpend:

@@ -51,7 +51,7 @@ class TestMatrix(TestCase):
         s = MatrixPrinter.msg_control_spends % 20
         self.assertEqual(s, MatrixPrinter.get_release_comment(0.2, []))
 
-        s = f"{MatrixPrinter.msg_control_spends % 10}\nA: hA\n"
+        s = f"{MatrixPrinter.msg_control_spends % 10}\n\nA: hA\n"
         t = Task('A', ['Petr'], 'FTW_13.3.7', 'hA')
         self.assertEqual(s, MatrixPrinter.get_release_comment(0.1, [t]))
 
@@ -175,7 +175,7 @@ class TestMatrixPrinter(TestCase):
         out = [['', '',        ''],
                ['', 'A: hA\n', 'Учтено 10% управленческих затрат времени на выпуск'],
                ['', 'C: hC\n', 'Учтено 10% управленческих затрат времени на выпуск'],
-               ['', 'B: hB\n', 'Учтено 10% управленческих затрат времени на выпуск\nB: hB\n'],
+               ['', 'B: hB\n', 'Учтено 10% управленческих затрат времени на выпуск\n\nB: hB\n'],
                ['', 'D: hD\n', 'Учтено 30% управленческих затрат времени на выпуск']]
         for i, col in enumerate(l.paper_comments):
             self.assertListEqual(out[i], col)
