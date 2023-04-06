@@ -9,30 +9,30 @@ class TestMatrix(TestCase):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         m = Matrix([t1, t2])
-        self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
-        self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
-        self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
+        self.assertEqual(m.num_tasks_ttl('Petr'), 2)
+        self.assertEqual(m.num_tasks_ttl('Foma'), 1)
+        self.assertTrue('FTW_13.3.7' in m._rows['Petr'].releases)
 
     def test_name_normalization(self):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
         m = Matrix([t1, t2, t3], {"Ptr": "Petr", "x": "y"})
-        self.assertEqual(m.rows['Petr'].tasks_ttl, 3)
-        self.assertEqual(m.rows['Foma'].tasks_ttl, 1)
-        self.assertTrue('FTW_13.3.7' in m.rows['Petr'].releases)
+        self.assertEqual(m.num_tasks_ttl('Petr'), 3)
+        self.assertEqual(m.num_tasks_ttl('Foma'), 1)
+        self.assertTrue('FTW_13.3.7' in m._rows['Petr'].releases)
 
     def test_empty_assignee_control(self):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
         m = Matrix([t1, t2], {"Ptr": "Petr", "x": "Empty", "y": "Empty"})
-        self.assertEqual(m.rows['Empty'].tasks_ttl, 0)
+        self.assertEqual(m.num_tasks_ttl('Empty'), 0)
 
     def test_same_assignee_several_times(self):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
         t2 = Task('B', ['Ptr', 'Petr'], 'OMG_13.3.8', 'http://')
         m = Matrix([t1, t2], {"Ptr": "Petr"})
-        self.assertEqual(m.rows['Petr'].tasks_ttl, 2)
+        self.assertEqual(m.num_tasks_ttl('Petr'), 2)
 
     def test_release_percents_calculation(self):
         self.assertAlmostEqual(  # the simplest case
@@ -67,7 +67,7 @@ class TestPredefinedSpend(TestCase):
             0.1, p.get_percents_predefined_for_release('Fedor', 'FTW_13.3.7'))
         d = {'FTW_13.3.7': 0.1, 'FTW_14.0.0': 0.1,
              'OMG_15.0.0': 0.0, 'DEFAULT': 0.3}
-        self.assertDictEqual(d, p.assignees['Fedor'].distribution)
+        self.assertDictEqual(d, p.assignees['Fedor']._distribution)
 
     def test_default_handling(self):
         r = {'FTW_13.3.7', 'FTW_14.0.0', 'OMG_15.0.0'}
