@@ -5,7 +5,7 @@ from sys import platform
 
 from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
-from src.Matrix import Matrix, ExcelPrinter
+from src.Matrix import Matrix, ExcelPrinter, DocxPrinter
 
 
 def main():
@@ -18,8 +18,8 @@ def main():
     with ExcelPrinter(a.out, vars(a)["from"], vars(a)["to"]) as p:
         p.print(Matrix(i, a.names_reference), a.predefined_spend)
 
-    # test = DocxPrinter()
-    # test.create_zip(Matrix(i, a.names_reference))
+    test = DocxPrinter()
+    test.create_zip(Matrix(i, a.names_reference))
 
     if (a.open):
         if platform in ("linux", "linux2"):

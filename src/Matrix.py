@@ -5,9 +5,10 @@ from xlsxwriter import Workbook
 
 from src.Handlers import Task
 
-# from docx import Document
-# import zipfile
-# import datetime
+from docx import Document
+import zipfile
+import datetime
+import os
 
 
 class NameNormalizer:
@@ -279,87 +280,109 @@ class ExcelPrinter(MatrixPrinter):
         self.sheet.write_comment(row, col, x)
 
 
-# class DocxPrinter:
+class DocxPrinter:
 
-#     def make_rows_bold(*rows):
-#         for row in rows:
-#             for cell in row.cells:
-#                 for paragraph in cell.paragraphs:
-#                     for run in paragraph.runs:
-#                         run.font.bold = True
+     def make_rows_bold(*rows):
+         for row in rows:
+             for cell in row.cells:
+                 for paragraph in cell.paragraphs:
+                     for run in paragraph.runs:
+                         run.font.bold = True
 
-#     def create_table(self, d: Document) -> Document:
-#         table = d.add_table(1, cols=3, style="Table Grid")
-#         table.allow_autofit = True
-#         head_cells = table.rows[0].cells
-#         for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
-#             p = head_cells[i].paragraphs[0]
-#             head_cells[i].text = item
-#         DocxPrinter.make_rows_bold(table.rows[0])
-#         return table
+     def create_table(self, d: Document) -> Document:
+         table = d.add_table(1, cols=3, style="Table Grid")
+         table.allow_autofit = True
+         head_cells = table.rows[0].cells
+         for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
+             p = head_cells[i].paragraphs[0]
+             head_cells[i].text = item
+         DocxPrinter.make_rows_bold(table.rows[0])
+         return table
 
-#     def normalize_date(self, a: datetime.date, b: datetime.date):
-#         return "{0}.{1}.{2} - {3}.{4}.{5}".format(a.day, a.month, a.year, b.day, b.month, b.year)
+     def normalize_date(self, a: datetime.date, b: datetime.date):
+         return "{0}.{1}.{2} - {3}.{4}.{5}".format(a.day, a.month, a.year, b.day, b.month, b.year)
 
-#     def create_zip(self, m: Matrix):
-#         folder_name = [x for x in sorted(m.releases_ever_known)]
-#         working_path = os.getcwd()
-#         if not os.path.exists(working_path+"/TFS_docx"):
-#             os.mkdir("TFS_docx")
-#         os.chdir(working_path+"/TFS_docx")
-#         zippers = working_path+"/TFS_docx"
+     def fill_in_data(self, key: bool, saving_path):
+         docx = Document()
+         table = self.create_table(docx)
 
-#         for x in folder_name:
-#             if not os.path.exists(zippers+"/"+x):
-#                 os.mkdir(x)
-#             os.chdir(zippers+"/"+x)
-#             for y in m.rows:
-#                 if len(m.rows[y].releases[x]) > 0:
-#                     docx = Document()
-#                     table = self.create_table(docx)
+         row_cells = table.add_row().cells
+         min_date = datetime.date.max
+         max_date = datetime.date.min
+         if key == 1:
+            for i in m._rows[y].releases[x]:
+                row_cells[0].text += i.title+";\n"
+                if (i.date_created < min_date):
+                    min_date = i.date_created
+                if (i.date_closed > max_date):
+                    max_date = i.date_closed
+         else:
 
-#                     row_cells = table.add_row().cells
-#                     min_date = datetime.date.max
-#                     max_date = datetime.date.min
-#                     for i in m.rows[y].releases[x]:
-#                         row_cells[0].text += i.title+";\n"
-#                         if (i.date_created < min_date):
-#                             min_date = i.date_created
-#                         if (i.date_closed > max_date):
-#                             max_date = i.date_closed
-#                     row_cells[1].text = self.normalize_date(min_date, max_date)
-#                     row_cells[2].text = y
+            row_cells[1].text = self.normalize_date(min_date, max_date)
+            row_cells[2].text = y
 
-#                     docx.save("%s.docx" % (y))
 
-#             os.chdir(zippers)
+            docx.save(saving_path+"/%s.docx" % (y))
 
-#         if not os.path.exists(zippers+"/Default"):
-#             os.mkdir("Default")
-#         os.chdir(zippers+"/Default")
-#         for y in m.rows:
-#             if len(m.rows[y].default) > 0:
-#                 docx = Document()
-#                 table = self.create_table(docx)
+     def create_zip(self, m: Matrix):
+         folder_name = [x for x in sorted(m.releases_ever_known)]
+         working_path = os.getcwd()
+         if not os.path.exists(working_path+"/TFS_docx"):
+             os.mkdir("TFS_docx")         
+         zippers = working_path+"/TFS_docx"
 
-#                 row_cells = table.add_row().cells
-#                 min_date = datetime.date.max
-#                 max_date = datetime.date.min
-#                 for i in m.rows[y].default:
-#                     row_cells[0].text += i.title+";\n"
-#                     if (i.date_created < min_date):
-#                         min_date = i.date_created
-#                     if (i.date_closed > max_date):
-#                         max_date = i.date_closed
-#                 row_cells[1].text = self.normalize_date(min_date, max_date)
-#                 row_cells[2].text = y
+         for x in folder_name:
+             if not os.path.exists(zippers+"/"+x):
+                 os.mkdir(x)             
+             saving_path = zippers+"/"+x
+             for y in m._rows:
+                 if len(m._rows[y].releases[x]) > 0:
+                     docx = Document()
+                     table = self.create_table(docx)
 
-#                 docx.save("%s.docx" % (y))
-#         os.chdir(zippers)
+                     row_cells = table.add_row().cells
+                     min_date = datetime.date.max
+                     max_date = datetime.date.min
+                     for i in m._rows[y].releases[x]:
+                         row_cells[0].text += i.title+";\n"
+                         if (i.date_created < min_date):
+                             min_date = i.date_created
+                         if (i.date_closed > max_date):
+                             max_date = i.date_closed
+                     row_cells[1].text = self.normalize_date(min_date, max_date)
+                     row_cells[2].text = y
 
-#         with zipfile.ZipFile(working_path+"/TFS_zipped.zip", 'w', zipfile.ZIP_DEFLATED) as archive_file:
-#             for dirpath, dirnames, filenames in os.walk(zippers):
-#                 for filename in filenames:
-#                     file_path = os.path.join(dirpath, filename)
-#                     archive_file_path = os.path.relpath(file_path, zippers)
-#                     archive_file.write(file_path, archive_file_path)
+                     docx.save(saving_path+"/%s.docx" % (y))
+                     
+
+             
+
+         if not os.path.exists(zippers+"/Default"):
+             os.mkdir("Default")
+         
+         saving_path = zippers+"/Default"
+         for y in m._rows:
+             if len(m._rows[y].default) > 0:
+                 docx = Document()
+                 table = self.create_table(docx)
+                 row_cells = table.add_row().cells
+                 min_date = datetime.date.max
+                 max_date = datetime.date.min
+                 for i in m._rows[y].default:
+                     row_cells[0].text += i.title+";\n"
+                     if (i.date_created < min_date):
+                         min_date = i.date_created
+                     if (i.date_closed > max_date):
+                         max_date = i.date_closed
+                 row_cells[1].text = self.normalize_date(min_date, max_date)
+                 row_cells[2].text = y
+
+                 docx.save(saving_path+"/%s.docx" % (y))
+         
+
+         with zipfile.ZipFile(working_path+"/TFS_zipped.zip", 'w', zipfile.ZIP_DEFLATED) as archive_file:
+             for dirpath, dirnames, filenames in os.walk(zippers):
+                 for filename in filenames:
+                     file_path = os.path.join(dirpath, filename)
+                     archive_file_path = os.path.relpath(file_path, zippers)
+                     archive_file.write(file_path, archive_file_path)
