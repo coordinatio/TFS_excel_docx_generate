@@ -14,11 +14,10 @@ class Task:
 
 
 class SnapshotInfo:
-    def __init__(self, date_from, date_to, datetime_updated: datetime, is_approved):
+    def __init__(self, date_from, date_to, datetime_updated: datetime):
         self.date_from = date_from
         self.date_to = date_to
         self.datetime_updated = datetime_updated
-        self.is_approved = is_approved
 
 
 class TaskProvider:
@@ -33,8 +32,20 @@ class SnapshotManager:
     def __init__(self, st: SnapshotStorage, tp: TaskProvider):
         pass
 
-    def stage_update(self, pat, date_from, date_to):
+    def draft_update(self, pat, date_from, date_to):
         pass
 
-    def stage_list(self) -> list[SnapshotInfo]:
+    def drafts_list(self) -> list[SnapshotInfo]:
+        return []
+
+    def draft_get_tasks(self, date_from, date_to) -> list[Task]:
+        return []
+
+    def draft_approve(self, date_from, date_to):
+        pass
+
+    def snapshots_list(self) -> list[SnapshotInfo]:
+        return []
+
+    def snapshot_get_tasks(self, date_from, date_to) -> list[Task]:
         return []
