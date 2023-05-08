@@ -24,7 +24,7 @@ class TestAssigneeExtraction(TestCase):
         class X(HandlerCai):
             def retrieve(self, pat, date_from, date_to):
                 return [MockWorkitem(d)]
-        self.assertEqual(X('', '', '').workitems[0].assignees, [
+        self.assertEqual(X('', '', '').tasks[0].assignees, [
                          'Алексей Калюжный', 'Федор Симашев'])
 
     def test_cai_no_tags(self):
@@ -37,7 +37,7 @@ class TestAssigneeExtraction(TestCase):
         class X(HandlerCai):
             def retrieve(self, pat, date_from, date_to):
                 return [MockWorkitem(d)]
-        self.assertEqual(X('', '', '').workitems[0].assignees, [
+        self.assertEqual(X('', '', '').tasks[0].assignees, [
                          'Алексей Калюжный'])
 
     def test_cai_hashtag(self):
@@ -50,7 +50,7 @@ class TestAssigneeExtraction(TestCase):
         class X(HandlerCai):
             def retrieve(self, pat, date_from, date_to):
                 return [MockWorkitem(d)]
-        self.assertEqual(X('', '', '').workitems[0].assignees, [
+        self.assertEqual(X('', '', '').tasks[0].assignees, [
                          'Алексей Калюжный', 'Федор Симашев'])
 
     def test_assignee_doubling_case(self):
@@ -63,7 +63,7 @@ class TestAssigneeExtraction(TestCase):
         class X(HandlerCai):
             def retrieve(self, pat, date_from, date_to):
                 return [MockWorkitem(d)]
-        self.assertEqual(X('', '', '').workitems[0].assignees, [
+        self.assertEqual(X('', '', '').tasks[0].assignees, [
                          'Федор Симашев'])
 
 
@@ -83,7 +83,7 @@ class TestReleaseExtraction(TestCase):
                      'microsoft.vsts.common.closeddate': '2023-01-01',
                      'Title': 'T'})
                 return [w]
-        self.assertEqual('CC_12.8.0', X('', '', '').workitems[0].release)
+        self.assertEqual('CC_12.8.0', X('', '', '').tasks[0].release)
 
     def test_cai_no_tags(self):
         class X(HandlerCai):
@@ -100,7 +100,7 @@ class TestReleaseExtraction(TestCase):
                      'microsoft.vsts.common.closeddate': '2023-01-01',
                      'Title': 'T'})
                 return [w]
-        self.assertEqual('CC_12.8.0', X('', '', '').workitems[0].release)
+        self.assertEqual('CC_12.8.0', X('', '', '').tasks[0].release)
 
     def test_is_happyday(self):
         class X(HandlerIS):
@@ -112,7 +112,7 @@ class TestReleaseExtraction(TestCase):
                      'microsoft.vsts.common.closeddate': '2023-01-01',
                      'system.areapath': 'AIS\\5.2'}
                 return [MockWorkitem(d)]
-        self.assertEqual('IS_5.2', X('', '', '').workitems[0].release)
+        self.assertEqual('IS_5.2', X('', '', '').tasks[0].release)
 
     def test_lx6_happyday(self):
         class X(HandlerLingvo):
@@ -124,4 +124,4 @@ class TestReleaseExtraction(TestCase):
                      'microsoft.vsts.common.closeddate': '2023-01-01',
                      'system.iterationpath': 'Lingvo X6\\16.3.1'}
                 return [MockWorkitem(d)]
-        self.assertEqual('LX6_16.3.1', X('', '', '').workitems[0].release)
+        self.assertEqual('LX6_16.3.1', X('', '', '').tasks[0].release)

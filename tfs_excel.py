@@ -13,7 +13,7 @@ def main():
 
     i = []
     for x in (HandlerCai, HandlerIS, HandlerLingvo):
-        i += x(a.pat, vars(a)["from"], vars(a)["to"]).workitems
+        i += x(a.pat, vars(a)["from"], vars(a)["to"]).tasks
 
     with ExcelPrinter(a.out, vars(a)["from"], vars(a)["to"]) as p:
         p.print(Matrix(i, a.names_reference), a.predefined_spend)

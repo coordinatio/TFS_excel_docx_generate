@@ -16,7 +16,7 @@ class Handler():
                               self.get_link(w),
                               self.get_date_created(w),
                               self.get_date_closed(w)))
-        self.workitems = tasks
+        self.tasks = tasks
 
     def get_assignees(self, workitem):
         assignees = []
