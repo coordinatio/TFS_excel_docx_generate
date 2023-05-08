@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.Handlers import Task
+from src.Task import Task
 from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer
 
 

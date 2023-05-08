@@ -1,19 +1,9 @@
 from datetime import datetime
 from re import search
-from typing import List
 
 from tfs import TFSAPI
 
-
-class Task:
-    def __init__(self, title: str, assignees: List[str], release: str, link: str, date_created=None, date_closed=None) -> None:
-        self.title = title
-        self.assignees = [x for x in sorted(set(assignees))]
-        self.release = release
-        self.link = link
-        self.date_created = date_created
-        self.date_closed = date_closed
-        self.broken = not self.title or not self.assignees
+from src.Task import Task
 
 
 class Handler():
@@ -168,7 +158,7 @@ class HandlerLingvo(Handler):
                   'lingvo.mac': 'LFM',
                   'lingvo.live.ios': 'LLI'}
         m = search(r'(.+?)\\(.+\\)?(\d+\.\d+(\.\d+)?)',
-                      workitem['system.iterationpath'])
+                   workitem['system.iterationpath'])
         if m:
             prj = m.group(1)
             ver = m.group(3)

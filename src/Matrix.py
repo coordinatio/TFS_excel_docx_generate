@@ -3,7 +3,7 @@ from math import fsum
 
 from xlsxwriter import Workbook
 
-from src.Handlers import Task
+from src.Task import Task
 
 from docx import Document
 import zipfile
