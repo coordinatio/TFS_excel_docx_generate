@@ -1,5 +1,5 @@
-from typing import List
 from datetime import datetime
+from typing import List, Tuple
 
 
 class Task:
@@ -14,38 +14,59 @@ class Task:
 
 
 class SnapshotInfo:
-    def __init__(self, date_from, date_to, datetime_updated: datetime):
+    def __init__(self, date_from, date_to, mtime: float):
         self.date_from = date_from
         self.date_to = date_to
-        self.datetime_updated = datetime_updated
+        self.mtime = mtime
 
 
 class TaskProvider:
-    pass
+    def get_tasks(self, pat, date_from, date_to) -> list[Task]:
+        raise NotImplementedError
 
 
 class SnapshotStorage:
-    pass
+    def draft_write(self, draft_id: Tuple[str, str], tasks: List[Task]) -> None:
+        raise NotImplementedError
+
+    def drafts_list(self) -> dict[Tuple[str, str], float]:
+        #                         ID   mtime
+        raise NotImplementedError
+
+    def draft_read(self, draft_id: Tuple[str, str]) -> list[Task]:
+        raise NotImplementedError
+
+    def draft_approve(self, draft_id: Tuple[str, str]):
+        raise NotImplementedError
+
+    def snapshots_list(self) -> list[Tuple[Tuple[str, str], float]]:
+        raise NotImplementedError
+
+    def snapshot_read(self, snap_id: Tuple[Tuple[str, str], float]) -> list[Task]:
+        # snap_id == (ID, mtime)
+        raise NotImplementedError
 
 
 class SnapshotManager:
-    def __init__(self, st: SnapshotStorage, tp: TaskProvider):
-        pass
+    def __init__(self, ss: SnapshotStorage, tp: TaskProvider):
+        self.s = ss
+        self.p = tp
 
     def draft_update(self, pat, date_from, date_to):
-        pass
+        tasks = self.p.get_tasks(pat, date_from, date_to)
+        self.s.draft_write((date_from, date_to), tasks)
 
     def drafts_list(self) -> list[SnapshotInfo]:
-        return []
+        return [SnapshotInfo(k[0], k[1], v) for k, v in self.s.drafts_list().items()]
 
     def draft_get_tasks(self, date_from, date_to) -> list[Task]:
-        return []
+        return self.s.draft_read((date_from, date_to))
 
     def draft_approve(self, date_from, date_to):
-        pass
+        self.s.draft_approve((date_from, date_to))
 
     def snapshots_list(self) -> list[SnapshotInfo]:
-        return []
+        return [SnapshotInfo(x[0][0], x[0][1], x[1]) for x in self.s.snapshots_list()]
 
     def snapshot_get_tasks(self, date_from, date_to) -> list[Task]:
-        return []
+        return self.s.snapshot_read((date_from, date_to))

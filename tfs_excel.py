@@ -6,6 +6,7 @@ from sys import platform
 from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
 from src.Matrix import Matrix, ExcelPrinter, DocxPrinter
+from src.Task import SnapshotStorage
 
 
 def main():

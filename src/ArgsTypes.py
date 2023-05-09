@@ -85,6 +85,14 @@ def parse_args():
     parser.add_argument('--pat', required=True,
                         help=('A Personal Access Token string which could be obtained '
                               'in the "Security" entry inside your TFS profile'))
+
+    parser.add_argument("--draft_update", action='store_true', default=False)
+    parser.add_argument("--drafts_list", action='store_true', default=False)
+    parser.add_argument("--draft_get", action='store_true', default=False)
+    parser.add_argument("--draft_approve", action='store_true', default=False)
+    parser.add_argument("--snapshots_list", action='store_true', default=False)
+    parser.add_argument("--snapshot_get", action='store_true', default=False)
+
     parser.add_argument('--from',
                         type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
                         help='dd-mm-YYYY', required=True)
