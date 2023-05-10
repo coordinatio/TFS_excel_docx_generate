@@ -1,39 +1,44 @@
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Dict
 from unittest import TestCase
 
-from src.Task import Task, SnapshotManager, SnapshotStorage, TaskProvider
+from requests import delete
+
+from src.Task import Task, SnapshotManager, SnapshotStorage, TaskProvider, tasklist_to_json, json_to_tasklist
 
 
 class MockSnapshotStorage(SnapshotStorage):
     def __init__(self) -> None:
-        self.drafts = dict()
-        self.snaps = dict()
+        # Dict[str, Dict[str, Tuple[str, float]]]
+        #      storage   data_id    data mtime
+        self.s = dict()
 
-    def draft_write(self, draft_id, tasks):
-       self.drafts[draft_id] = (tasks, datetime.now().astimezone().timestamp()) 
+    def write(self, storage_id: str, data_id: str, data: str) -> None:
+        x = (data, datetime.now().astimezone().timestamp())
+        if storage_id in self.s:
+            self.s[storage_id][data_id] = x
+        else:
+            self.s[storage_id] = {data_id: x}
 
-    def drafts_list(self) -> dict[Tuple[str, str], float]:
-        return {k:v[1] for k,v in self.drafts.items()}
+    def list(self, storage_id: str) -> dict[str, float]:
+        return {k: v[1] for k, v in self.s[storage_id].items()}
 
-    def draft_read(self, draft_id) -> list[Task]:
-        return self.drafts[draft_id][0]
+    def read(self, storage_id: str, data_id: str) -> str:
+        return self.s[storage_id][data_id][0]
 
-    def draft_approve(self, draft_id):
-        p = self.drafts.pop(draft_id)
-        self.snaps[(draft_id, p[1])] = p[0]
-
-    def snapshots_list(self) -> list[Tuple[Tuple[str, str], float]]:
-        return [k for k in self.snaps]
-
-    def snapshot_read(self, snap_id) -> list[Task]:
-        return self.snaps[snap_id]
+    def delete(self, storage_id: str, data_id: str) -> None:
+        del self.s[storage_id][data_id]
 
 
 apr = [Task('April1', ['A1'], 'CC_13.3.7', ''),
        Task('April2', ['A2'], 'CC_13.3.7', '')]
 may = [Task('May1', ['M1'], 'CC_13.3.8', ''),
        Task('May2', ['M2'], 'CC_13.3.8', '')]
+
+
+class TestTaskSerialization(TestCase):
+    def test_serialize_deserialize(self):
+        self.assertListEqual(apr, json_to_tasklist(tasklist_to_json(apr)))
 
 
 class MockTasksProvider(TaskProvider):

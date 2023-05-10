@@ -10,12 +10,13 @@ class Handler():
     def __init__(self, pat, date_from, date_to) -> None:
         tasks = []
         for w in self.retrieve(pat, date_from, date_to):
-            tasks.append(Task(self.get_title(w),
-                              self.get_assignees(w),
-                              self.get_release(w),
-                              self.get_link(w),
-                              self.get_date_created(w),
-                              self.get_date_closed(w)))
+            x = {'title': self.get_title(w),
+                 'assignees': self.get_assignees(w),
+                 'release': self.get_release(w),
+                 'link': self.get_link(w),
+                 'date_created': self.get_date_created(w),
+                 'date_closed': self.get_date_closed(w)}
+            tasks.append(Task(**x))
         self.tasks = tasks
 
     def get_assignees(self, workitem):
