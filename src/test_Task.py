@@ -1,8 +1,5 @@
 from datetime import datetime
-from typing import Tuple, Dict
 from unittest import TestCase
-
-from requests import delete
 
 from src.Task import Task, SnapshotManager, SnapshotStorage, TaskProvider, tasklist_to_json, json_to_tasklist
 

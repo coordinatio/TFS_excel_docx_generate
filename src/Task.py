@@ -23,7 +23,6 @@ class Task:
             if k not in other.__dict__ or self.__dict__[k] != other.__dict__[k]:
                 return False
         return True
-        
 
 
 def tasklist_to_json(tasklist: List[Task]) -> str:
@@ -72,12 +71,13 @@ class SnapshotManager:
         self.s = ss
         self.p = tp
 
-    # def draft_update(self, pat, date_from, date_to):
-    #     tasks = self.p.get_tasks(pat, date_from, date_to)
-    #     self.s.draft_write((date_from, date_to), tasks)
+    def draft_update(self, pat, date_from, date_to):
+        t = self.p.get_tasks(pat, date_from, date_to)
+        self.s.write('drafts', f'{date_from}_{date_to}', tasklist_to_json(t))
 
-    # def drafts_list(self) -> list[SnapshotInfo]:
-    #     return [SnapshotInfo(k[0], k[1], v) for k, v in self.s.drafts_list().items()]
+    def drafts_list(self) -> list[SnapshotInfo]:
+        self.s.list('drafts')
+        return [SnapshotInfo(k[0], k[1], v) for k, v in self.s.drafts_list().items()]
 
     # def draft_get_tasks(self, date_from, date_to) -> list[Task]:
     #     return self.s.draft_read((date_from, date_to))
