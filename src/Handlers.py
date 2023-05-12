@@ -100,7 +100,7 @@ class HandlerCai(Handler):
         w = workitem
         while True:
             if w['Tags']:
-                m = search(r'[A-Z]+_\d+\.\d+\.\d+', w['Tags'])
+                m = search(r'[A-Z\d]+_\d+\.\d+\.\d+', w['Tags'])
                 if m:
                     return str(m.group(0))
             if not w.parent:
@@ -166,7 +166,8 @@ class HandlerLingvo(Handler):
                   'lingvo.mobile.iOS': 'LMI',
                   'lingvo.mobile.android': 'LMA',
                   'lingvo.mac': 'LFM',
-                  'lingvo.live.ios': 'LLI'}
+                  'lingvo.live.ios': 'LLI',
+                  'lingvo.live.android': 'LLA'}
         m = search(r'(.+?)\\(.+\\)?(\d+\.\d+(\.\d+)?)',
                       workitem['system.iterationpath'])
         if m:
