@@ -1,4 +1,6 @@
 import json
+import os
+import pathlib
 from typing import List
 
 
@@ -64,6 +66,30 @@ class SnapshotStorage:
 
     def delete(self, storage_id: str, data_id: str) -> None:
         raise NotImplementedError
+
+
+class DiskSnapshotStorage(SnapshotStorage):
+    def __init__(self, path_to_the_storage: str) -> None:
+        self.path = pathlib.Path(path_to_the_storage)
+        if not self.path.exists():
+            self.path.mkdir()
+
+    def write(self, storage_id: str, data_id: str, data: str) -> None:
+        s_id = self.path / storage_id
+        if not s_id.exists():
+            s_id.mkdir()
+        with open(s_id / data_id, mode='w') as f:
+            f.write(data)
+
+    def list(self, storage_id: str) -> dict[str, float]:
+        return {x.name: x.stat().st_mtime for x in (self.path / storage_id).iterdir()}
+
+    def read(self, storage_id: str, data_id: str) -> str:
+        with open(self.path / storage_id / data_id, mode='r') as f:
+            return f.read()
+
+    def delete(self, storage_id: str, data_id: str) -> None:
+        (self.path / storage_id / data_id).unlink()
 
 
 class SnapshotManager:
