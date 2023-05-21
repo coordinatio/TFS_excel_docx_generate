@@ -48,6 +48,24 @@ class MockTasksProvider(TaskProvider):
 
 
 class TestSnapshotManager(TestCase):
+    def test_id2_decoding(self):
+        in_from = '01-05-2023'
+        in_to = '31-05-2023'
+        x = SnapshotManager.id2_encode(in_from, in_to)
+        out_from, out_to = SnapshotManager.id2_decode(x)
+        self.assertEqual(in_from, out_from)
+        self.assertEqual(in_to, out_to)
+
+    def test_id3_decoding(self):
+        in_from = '01-05-2023'
+        in_to = '31-05-2023'
+        in_mtime = datetime.now().astimezone().timestamp()
+        x = SnapshotManager.id3_encode(in_from, in_to, in_mtime)
+        out_from, out_to, out_mtime = SnapshotManager.id3_decode(x)
+        self.assertEqual(in_from, out_from)
+        self.assertEqual(in_to, out_to)
+        self.assertAlmostEqual(in_mtime, out_mtime)
+
     def test_stage_manipulation(self):
         sm = SnapshotManager(MockSnapshotStorage(), MockTasksProvider())
 
@@ -99,11 +117,12 @@ class TestSnapshotManager(TestCase):
         self.assertEqual(1, len(a))
         self.assertEqual(a[0].date_from,  '01-04-2023')
         self.assertEqual(a[0].date_to,    '30-04-2023')
+        u = a[0].mtime
 
         with self.assertRaises(KeyError):
-            sm.snapshot_get_tasks('01-04-2000', '30-04-2000')
+            sm.snapshot_get_tasks('01-04-2000', '30-04-2000', u)
 
-        b = sm.snapshot_get_tasks('01-04-2023', '30-04-2023')
+        b = sm.snapshot_get_tasks('01-04-2023', '30-04-2023', u)
         self.assertListEqual(b, apr)
 
 

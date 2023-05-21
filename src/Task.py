@@ -71,22 +71,56 @@ class SnapshotManager:
         self.s = ss
         self.p = tp
 
+    @staticmethod
+    def id2_encode(date_from: str, date_to: str) -> str:
+        return f'{date_from}_{date_to}'
+
+    @staticmethod
+    def id2_decode(data_id: str) -> tuple[str, str]:
+        x = data_id.index('_')
+        return (data_id[:x], data_id[x+1:])
+
+    @staticmethod
+    def id3_encode(date_from: str, date_to: str, mtime: float) -> str:
+        return f'{date_from}_{date_to}_{mtime}'
+
+    @staticmethod
+    def id3_decode(data_id: str) -> tuple[str, str, float]:
+        x = data_id.index('_')
+        y = data_id.index('_', x+1)
+        return (data_id[:x], data_id[x+1:y], float(data_id[y+1:]))
+
     def draft_update(self, pat, date_from, date_to):
         t = self.p.get_tasks(pat, date_from, date_to)
-        self.s.write('drafts', f'{date_from}_{date_to}', tasklist_to_json(t))
+        x = self.id2_encode(date_from, date_to)
+        self.s.write('drafts', x, tasklist_to_json(t))
 
     def drafts_list(self) -> list[SnapshotInfo]:
-        self.s.list('drafts')
-        return [SnapshotInfo(k[0], k[1], v) for k, v in self.s.drafts_list().items()]
+        out = []
+        for data_id, mtime in self.s.list('drafts').items():
+            date_from, date_to = self.id2_decode(data_id)
+            out.append(SnapshotInfo(date_from, date_to, mtime))
+        return out
 
-    # def draft_get_tasks(self, date_from, date_to) -> list[Task]:
-    #     return self.s.draft_read((date_from, date_to))
+    def draft_get_tasks(self, date_from, date_to) -> list[Task]:
+        x = self.s.read('drafts', self.id2_encode(date_from, date_to))
+        return json_to_tasklist(x)
 
-    # def draft_approve(self, date_from, date_to):
-    #     self.s.draft_approve((date_from, date_to))
+    def draft_approve(self, date_from, date_to):
+        id2 = self.id2_encode(date_from, date_to)
+        f = self.s.list('drafts')[id2]
+        x = self.s.read('drafts', id2)
+        self.s.write('snapshots', self.id3_encode(date_from, date_to, f), x)
+        self.s.delete('drafts', id2)
 
-    # def snapshots_list(self) -> list[SnapshotInfo]:
-    #     return [SnapshotInfo(x[0][0], x[0][1], x[1]) for x in self.s.snapshots_list()]
+    def snapshots_list(self) -> list[SnapshotInfo]:
+        out = []
+        for data_id in self.s.list('snapshots'):
+            date_from, date_to, mtime = self.id3_decode(data_id)
+            out.append(SnapshotInfo(date_from, date_to, mtime))
+        return out
 
-    # def snapshot_get_tasks(self, date_from, date_to) -> list[Task]:
-    #     return self.s.snapshot_read((date_from, date_to))
+    def snapshot_get_tasks(self, date_from, date_to, mtime) -> list[Task]:
+        x = self.s.read('snapshots', self.id3_encode(
+            date_from, date_to, mtime))
+        return json_to_tasklist(x)
