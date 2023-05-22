@@ -4,15 +4,12 @@ from typing import List
 
 
 class Task:
-    def __init__(self, title: str, assignees: List[str], release: str, link: str, date_created=None, date_closed=None, **kwargs) -> None:
+    def __init__(self, title: str, assignees: List[str], release: str, link: str, **kwargs) -> None:
         self.assignees = [x for x in sorted(
             set(kwargs['assignees'] if 'assignees' in kwargs else assignees))]
         self.title = kwargs['title'] if 'title' in kwargs else title
         self.release = kwargs['release'] if 'release' in kwargs else release
         self.link = kwargs['link'] if 'link' in kwargs else link
-        self.date_created = kwargs['date_created'] if 'date_created' in kwargs else date_created
-        self.date_closed = kwargs['date_closed'] if 'date_closed' in kwargs else date_closed
-        self.broken = not self.title or not self.assignees
 
     def __eq__(self, other) -> bool:
         if len(self.assignees) != len(other.assignees):
@@ -20,7 +17,7 @@ class Task:
         for x in zip(self.assignees, other.assignees):
             if x[0] != x[1]:
                 return False
-        for k in ('title', 'release', 'link', 'date_created', 'date_closed'):
+        for k in ('title', 'release', 'link'):
             if k not in other.__dict__ or self.__dict__[k] != other.__dict__[k]:
                 return False
         return True

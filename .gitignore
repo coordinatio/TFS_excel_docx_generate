@@ -3,4 +3,6 @@
 *.zip
 *__pycache__*
 .cmd
+.db
+.pat
 /TFS_docx

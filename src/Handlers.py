@@ -13,9 +13,7 @@ class Handler():
             x = {'title': self.get_title(w),
                  'assignees': self.get_assignees(w),
                  'release': self.get_release(w),
-                 'link': self.get_link(w),
-                 'date_created': self.get_date_created(w),
-                 'date_closed': self.get_date_closed(w)}
+                 'link': self.get_link(w)}
             tasks.append(Task(**x))
         self.tasks = tasks
 
@@ -35,12 +33,6 @@ class Handler():
 
     def get_title(self, workitem):
         return str(workitem['Title'])
-
-    def get_date_created(self, workitem):
-        return datetime.strptime(workitem['CreatedDate'][:10], '%Y-%m-%d').date().strftime("%d-%m-%Y")
-
-    def get_date_closed(self, workitem):
-        return datetime.strptime(workitem['microsoft.vsts.common.closeddate'][:10], '%Y-%m-%d').date().strftime("%d-%m-%Y")
 
     def get_release(self, workitem):
         return ''

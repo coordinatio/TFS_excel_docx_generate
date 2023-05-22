@@ -227,3 +227,11 @@ class TestNameFilter(TestCase):
         nf = NameNormalizer({"a": "1", "b": "2", "c": "2"})
         dst = [nf.normalize(x)[0] for x in src]
         self.assertListEqual(['1', '2'], dst)
+
+class TestAssignmentsGeneration(TestCase):
+    def test_matrix2assignment_conversion(self):
+        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
+        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
+        t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
+        m = Matrix([t1, t2, t3], {"Ptr": "Petr", "x": "y"})
+
