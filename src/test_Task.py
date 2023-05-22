@@ -44,7 +44,8 @@ class MockTasksProvider(TaskProvider):
             return apr
         if date_from == '01-05-2023' and date_to == '31-05-2023':
             return may
-        raise ValueError
+        raise ValueError(
+            'Hey that is a mock! I know only two concrete intervals')
 
 
 class TestSnapshotManager(TestCase):
@@ -100,10 +101,17 @@ class TestSnapshotManager(TestCase):
         b = sm.draft_get_tasks('01-05-2023', '31-05-2023')
         self.assertListEqual(b, may)
 
+        sm.draft_delete('01-05-2023', '31-05-2023')
+        a = sm.drafts_list()
+        self.assertEqual(len(a), 1)
+        self.assertEqual(a[0].date_from,  '01-04-2023')
+        self.assertEqual(a[0].date_to,    '30-04-2023')
+
     def test_snapshot_manipulation(self):
         sm = SnapshotManager(MockSnapshotStorage(), MockTasksProvider())
 
         sm.draft_update('patpatpatpat', '01-04-2023', '30-04-2023')
+        sm.draft_update('patpatpatpat', '01-05-2023', '31-05-2023')
 
         with self.assertRaises(KeyError):
             sm.draft_approve('01-04-2000', '30-04-2000')
@@ -111,13 +119,16 @@ class TestSnapshotManager(TestCase):
         sm.draft_approve('01-04-2023', '30-04-2023')
 
         # approve removes from the drafts
-        self.assertEqual(0, len(sm.drafts_list()))
+        self.assertEqual(1, len(sm.drafts_list()))
 
         a = sm.snapshots_list()
         self.assertEqual(1, len(a))
         self.assertEqual(a[0].date_from,  '01-04-2023')
         self.assertEqual(a[0].date_to,    '30-04-2023')
         u = a[0].mtime
+
+        sm.draft_approve('01-05-2023', '31-05-2023')
+        self.assertEqual(2, len(sm.snapshots_list()))
 
         with self.assertRaises(KeyError):
             sm.snapshot_get_tasks('01-04-2000', '30-04-2000', u)

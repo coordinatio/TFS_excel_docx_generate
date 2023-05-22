@@ -126,6 +126,9 @@ class SnapshotManager:
             out.append(SnapshotInfo(date_from, date_to, mtime))
         return out
 
+    def draft_delete(self, date_from: str, date_to: str) -> None:
+        self.s.delete('drafts', self.id2_encode(date_from, date_to))
+
     def draft_get_tasks(self, date_from, date_to) -> list[Task]:
         x = self.s.read('drafts', self.id2_encode(date_from, date_to))
         return json_to_tasklist(x)
