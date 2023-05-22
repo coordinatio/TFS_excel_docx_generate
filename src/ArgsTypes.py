@@ -1,10 +1,10 @@
 from argparse import ArgumentParser, ArgumentTypeError
-from datetime import datetime
 from json import loads
 from os import path
 from math import fsum
 from pathlib import Path
-from sys import argv
+from tempfile import mkstemp
+import re
 
 
 class ArgsTypes:
@@ -49,7 +49,8 @@ class ArgsTypes:
                     raise ArgumentTypeError(msg)
             prealloc_ttl = fsum([w for _, w in d[k].items()])
             if prealloc_ttl >= 1:
-                raise ArgumentTypeError("It is allowed to preallocate strictly less than 100%")
+                raise ArgumentTypeError(
+                    "It is allowed to preallocate strictly less than 100%")
 
     @staticmethod
     def arg_predefined_spend_file(path_to_file: str) -> dict:
@@ -70,15 +71,18 @@ class ArgsTypes:
         return j
 
     @staticmethod
-    def arg_date(i: str) -> str:
-        d = ('-', '.', '/', ' ')
-        for x in d:
-            try:
-                return datetime.strptime(i, f'%d{x}%m{x}%Y').date().strftime("%d-%m-%Y")
-            except:
-                pass
-        raise ArgumentTypeError(
-            f"Please provide date in either {' or '.join([f'dd{x}mm{x}YYYY' for x in d])} format")
+    def arg_dates_interval(i: str) -> tuple[str, str] | bool:
+        if i == 'next':
+            return True
+        r = re.compile(
+            r'^((\d\d?)[-\.\/\s](\d\d?)[-\.\/\s](\d\d\d\d))-((\d\d?)[-\.\/\s](\d\d?)[-\.\/\s](\d\d\d\d))$')
+        m = r.fullmatch(i)
+        if not m:
+            raise ArgumentTypeError(("Please provide the interval in the following format "
+                                     "dd.mm.YYYY-dd.mm.YYYY (you can use '-','/',' ' instead of '.'). "
+                                     "You can also use the keywork 'next' to calculate the interval "
+                                     "automatically based on the latest snapshot available."))
+        return (f'{m.group(2)}-{m.group(3)}-{m.group(4)}', f'{m.group(6)}-{m.group(7)}-{m.group(8)}')
 
 
 def parse_args():
@@ -95,27 +99,20 @@ def parse_args():
         with pat_file.open() as f:
             parser.add_argument('--pat', default=f.read(), help=pat_help)
 
-    
     mutex = parser.add_mutually_exclusive_group(required=True)
-    mutex.add_argument("--draft_update", action='store_true')
+    mutex.add_argument("--draft_update", type=ArgsTypes.arg_dates_interval,
+                       metavar='next|dd.mm.YYYY-dd.mm.YYYY')
     mutex.add_argument("--drafts_list", action='store_true')
     mutex.add_argument("--draft_get", type=int, metavar='DRAFT#')
     mutex.add_argument("--draft_approve", type=int, metavar='DRAFT#')
     mutex.add_argument("--snapshots_list", action='store_true')
     mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#')
 
-    if '--draft_update' in argv:
-        parser.add_argument('--from', dest='date_from',
-                            type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
-                            help='dd-mm-YYYY', required=True)
-        parser.add_argument('--to', dest='date_to',
-                            type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
-                            help='dd-mm-YYYY', required=True)
-
     parser.add_argument("--out",
-                        default="time_report.xlsx", metavar='./THE_EXCEL_FILE_TO_WRITE_INTO.xlsx',
+                        default=mkstemp(suffix='.xlsx', prefix='tfs_excel_')[1],
+                        metavar='./THE_EXCEL_FILE_TO_WRITE_INTO.xlsx',
                         help="File to put the results into. Defaults to 'time_report.xlsx'.")
-    parser.add_argument("--open", action='store_true', default=False,
+    parser.add_argument("--no_open", action='store_true',
                         help="Tells if to open the resulting file immediately after creation")
     parser.add_argument('--names_reference', type=ArgsTypes.arg_names_reference_file,
                         default='name_filter.json', metavar='./A_SPECIAL_FILE.json',

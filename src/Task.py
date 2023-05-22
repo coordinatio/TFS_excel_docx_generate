@@ -40,7 +40,6 @@ class SnapshotInfo:
         self.date_to = date_to
         self.mtime = mtime
 
-
 class TaskProvider:
     def get_tasks(self, pat, date_from, date_to) -> list[Task]:
         raise NotImplementedError

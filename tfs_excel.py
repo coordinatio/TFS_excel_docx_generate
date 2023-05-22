@@ -2,12 +2,12 @@
 from os import path
 from subprocess import call
 from sys import platform
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
 from src.Matrix import Matrix, ExcelPrinter, DocxPrinter
-from src.Task import DiskSnapshotStorage, SnapshotManager, SnapshotStorage, Task, TaskProvider
+from src.Task import DiskSnapshotStorage, SnapshotManager, Task, TaskProvider
 
 class TFS_TaskProvider(TaskProvider):
     def get_tasks(self, pat, date_from, date_to) -> list[Task]:
@@ -20,10 +20,18 @@ def main():
     a = parse_args()
 
     sm = SnapshotManager(DiskSnapshotStorage('./.db'), TFS_TaskProvider())
-    if a.draft_update:
-        sm.draft_update(a.pat, a.date_from, a.date_to)
-        with ExcelPrinter(a.out, a.date_from, a.date_to) as p:
-            l = sm.draft_get_tasks(a.date_from, a.date_to)
+    if a.draft_update is not None:
+        date_from = ''
+        date_to = ''
+        if isinstance(a.draft_update, bool):
+            date_from = sorted([(datetime.strptime(x.date_to, '%d-%m-%Y'), x) for x in sm.snapshots_list()])[0][1].date_to
+            date_to = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
+        else:
+            date_from = a.draft_update[0]
+            date_to = a.draft_update[1]
+        sm.draft_update(a.pat, date_from, date_to)
+        with ExcelPrinter(a.out, date_from, date_to) as p:
+            l = sm.draft_get_tasks(date_from, date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
     elif a.draft_get is not None:
@@ -34,7 +42,7 @@ def main():
 
     elif a.drafts_list:
         for i, d in enumerate(sm.drafts_list()):
-            x = datetime.fromtimestamp(d.mtime, tz=timezone.utc)
+            x = datetime.fromtimestamp(d.mtime, tz=timezone.utc).astimezone()
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
 
     elif a.draft_approve is not None:
@@ -43,7 +51,7 @@ def main():
 
     elif a.snapshots_list:
         for i, d in enumerate(sm.snapshots_list()):
-            x = datetime.fromtimestamp(d.mtime, tz=timezone.utc)
+            x = datetime.fromtimestamp(d.mtime, tz=timezone.utc).astimezone()
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
 
     elif a.snapshot_get is not None:
@@ -56,7 +64,7 @@ def main():
     # test = DocxPrinter()
     # test.create_zip(Matrix(i, a.names_reference))
 
-    if a.open and (a.draft_get is not None or a.draft_update is not None or a.snapshot_get is not None):
+    if not a.no_open and any(x is not None for x in (a.draft_get, a.draft_update, a.snapshot_get)):
         if platform in ("linux", "linux2"):
             call(["xdg-open", path.abspath(a.out)])
         else:
