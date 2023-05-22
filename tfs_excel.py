@@ -25,20 +25,25 @@ def main():
         with ExcelPrinter(a.out, a.date_from, a.date_to) as p:
             l = sm.draft_get_tasks(a.date_from, a.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
+
     elif a.draft_get:
         with ExcelPrinter(a.out, a.date_from, a.date_to) as p:
             l = sm.draft_get_tasks(a.date_from, a.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
+
     elif a.drafts_list:
         for i, d in enumerate(sm.drafts_list()):
             x = datetime.fromtimestamp(d.mtime, tz=timezone.utc)
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
+
     elif a.draft_approve:
         sm.draft_approve(a.date_from, a.date_to)
+
     elif a.snapshots_list:
         for i, d in enumerate(sm.snapshots_list()):
             x = datetime.fromtimestamp(d.mtime, tz=timezone.utc)
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
+
     else:
         i = []
         for x in (HandlerCai, HandlerIS, HandlerLingvo):

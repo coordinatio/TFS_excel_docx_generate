@@ -2,8 +2,8 @@ from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 from json import loads
 from os import path
-from typing import Dict
 from math import fsum
+from pathlib import Path
 
 
 class ArgsTypes:
@@ -82,9 +82,17 @@ class ArgsTypes:
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument('--pat', required=True,
-                        help=('A Personal Access Token string which could be obtained '
-                              'in the "Security" entry inside your TFS profile'))
+
+    pat_help = ('A Personal Access Token string which could be obtained '
+                'in the "Security" entry inside your TFS profile. '
+                'You can provide the value by creating ".pat" file with it in the script\'s work directory, '
+                'thus you can omit the explicit argument while the value is read implicitly from the file.')
+    pat_file = Path('./.pat')
+    if not pat_file.is_file():
+        parser.add_argument('--pat', required=True, help=pat_help)
+    else:
+        with pat_file.open() as f:
+            parser.add_argument('--pat', default=f.read(), help=pat_help)
 
     parser.add_argument("--draft_update", action='store_true', default=False)
     parser.add_argument("--drafts_list", action='store_true', default=False)
