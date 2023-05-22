@@ -40,6 +40,10 @@ def main():
             l = sm.draft_get_tasks(x.date_from, x.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
+    elif a.draft_delete is not None:
+        x = sm.drafts_list()[a.draft_delete]
+        sm.draft_delete(x.date_from, x.date_to)
+
     elif a.drafts_list:
         for i, d in enumerate(sm.drafts_list()):
             x = datetime.fromtimestamp(d.mtime, tz=timezone.utc).astimezone()

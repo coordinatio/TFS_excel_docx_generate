@@ -104,6 +104,7 @@ def parse_args():
                        metavar='next|dd.mm.YYYY-dd.mm.YYYY')
     mutex.add_argument("--drafts_list", action='store_true')
     mutex.add_argument("--draft_get", type=int, metavar='DRAFT#')
+    mutex.add_argument("--draft_delete", type=int, metavar='DRAFT#')
     mutex.add_argument("--draft_approve", type=int, metavar='DRAFT#')
     mutex.add_argument("--snapshots_list", action='store_true')
     mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#')
