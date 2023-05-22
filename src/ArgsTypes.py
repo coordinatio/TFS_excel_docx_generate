@@ -4,6 +4,7 @@ from json import loads
 from os import path
 from math import fsum
 from pathlib import Path
+from sys import argv
 
 
 class ArgsTypes:
@@ -94,19 +95,23 @@ def parse_args():
         with pat_file.open() as f:
             parser.add_argument('--pat', default=f.read(), help=pat_help)
 
-    parser.add_argument("--draft_update", action='store_true', default=False)
-    parser.add_argument("--drafts_list", action='store_true', default=False)
-    parser.add_argument("--draft_get", action='store_true', default=False)
-    parser.add_argument("--draft_approve", action='store_true', default=False)
-    parser.add_argument("--snapshots_list", action='store_true', default=False)
-    parser.add_argument("--snapshot_get", action='store_true', default=False)
+    
+    mutex = parser.add_mutually_exclusive_group(required=True)
+    mutex.add_argument("--draft_update", action='store_true')
+    mutex.add_argument("--drafts_list", action='store_true')
+    mutex.add_argument("--draft_get", type=int, metavar='DRAFT#')
+    mutex.add_argument("--draft_approve", type=int, metavar='DRAFT#')
+    mutex.add_argument("--snapshots_list", action='store_true')
+    mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#')
 
-    parser.add_argument('--from', dest='date_from',
-                        type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
-                        help='dd-mm-YYYY', required=True)
-    parser.add_argument('--to', dest='date_to',
-                        type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
-                        help='dd-mm-YYYY', required=True)
+    if '--draft_update' in argv:
+        parser.add_argument('--from', dest='date_from',
+                            type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
+                            help='dd-mm-YYYY', required=True)
+        parser.add_argument('--to', dest='date_to',
+                            type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
+                            help='dd-mm-YYYY', required=True)
+
     parser.add_argument("--out",
                         default="time_report.xlsx", metavar='./THE_EXCEL_FILE_TO_WRITE_INTO.xlsx',
                         help="File to put the results into. Defaults to 'time_report.xlsx'.")

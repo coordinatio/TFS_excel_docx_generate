@@ -26,9 +26,10 @@ def main():
             l = sm.draft_get_tasks(a.date_from, a.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
-    elif a.draft_get:
-        with ExcelPrinter(a.out, a.date_from, a.date_to) as p:
-            l = sm.draft_get_tasks(a.date_from, a.date_to)
+    elif a.draft_get is not None:
+        x = sm.drafts_list()[a.draft_get]
+        with ExcelPrinter(a.out, x.date_from, x.date_to) as p:
+            l = sm.draft_get_tasks(x.date_from, x.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
     elif a.drafts_list:
@@ -36,26 +37,26 @@ def main():
             x = datetime.fromtimestamp(d.mtime, tz=timezone.utc)
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
 
-    elif a.draft_approve:
-        sm.draft_approve(a.date_from, a.date_to)
+    elif a.draft_approve is not None:
+        x = sm.drafts_list()[a.draft_approve]
+        sm.draft_approve(x.date_from, x.date_to)
 
     elif a.snapshots_list:
         for i, d in enumerate(sm.snapshots_list()):
             x = datetime.fromtimestamp(d.mtime, tz=timezone.utc)
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
 
-    else:
-        i = []
-        for x in (HandlerCai, HandlerIS, HandlerLingvo):
-            i += x(a.pat, vars(a)["from"], vars(a)["to"]).tasks
+    elif a.snapshot_get is not None:
+        x = sm.snapshots_list()[a.snapshots_list]
+        with ExcelPrinter(a.out, x.date_from, x.date_to) as p:
+            l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
+            p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
-        with ExcelPrinter(a.out, a.date_from, a.date_to) as p:
-            p.print(Matrix(i, a.names_reference), a.predefined_spend)
 
-        # test = DocxPrinter()
-        # test.create_zip(Matrix(i, a.names_reference))
+    # test = DocxPrinter()
+    # test.create_zip(Matrix(i, a.names_reference))
 
-    if a.open and (a.draft_get or a.draft_update or a.snapshot_get):
+    if a.open and (a.draft_get is not None or a.draft_update is not None or a.snapshot_get is not None):
         if platform in ("linux", "linux2"):
             call(["xdg-open", path.abspath(a.out)])
         else:
