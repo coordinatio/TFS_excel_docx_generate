@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-from os import path
 from subprocess import call
 from sys import platform
 from datetime import datetime, timezone, timedelta
+import os
 
 from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
@@ -64,11 +64,14 @@ def main():
     # test = DocxPrinter()
     # test.create_zip(Matrix(i, a.names_reference))
 
-    if not a.no_open and any(x is not None for x in (a.draft_get, a.draft_update, a.snapshot_get)):
-        if platform in ("linux", "linux2"):
-            call(["xdg-open", path.abspath(a.out)])
+    if any(x is not None for x in (a.draft_get, a.draft_update, a.snapshot_get)):
+        if a.no_open:
+            print(f'The xlsx is saved into "{a.out}"')
         else:
-            print("--open works only on linux yet")
+            if platform in ("linux", "linux2"):
+                call(["xdg-open", os.path.abspath(a.out)])
+            else:
+                os.startfile(a.out)
 
 
 if __name__ == "__main__":
