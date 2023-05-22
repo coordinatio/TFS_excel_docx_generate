@@ -37,10 +37,10 @@ class Handler():
         return str(workitem['Title'])
 
     def get_date_created(self, workitem):
-        return datetime.strptime(workitem['CreatedDate'][:10], '%Y-%m-%d').date()
+        return datetime.strptime(workitem['CreatedDate'][:10], '%Y-%m-%d').date().strftime("%d-%m-%Y")
 
     def get_date_closed(self, workitem):
-        return datetime.strptime(workitem['microsoft.vsts.common.closeddate'][:10], '%Y-%m-%d').date()
+        return datetime.strptime(workitem['microsoft.vsts.common.closeddate'][:10], '%Y-%m-%d').date().strftime("%d-%m-%Y")
 
     def get_release(self, workitem):
         return ''

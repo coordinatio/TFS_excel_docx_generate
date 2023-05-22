@@ -93,10 +93,10 @@ def parse_args():
     parser.add_argument("--snapshots_list", action='store_true', default=False)
     parser.add_argument("--snapshot_get", action='store_true', default=False)
 
-    parser.add_argument('--from',
+    parser.add_argument('--from', dest='date_from',
                         type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
                         help='dd-mm-YYYY', required=True)
-    parser.add_argument('--to',
+    parser.add_argument('--to', dest='date_to',
                         type=ArgsTypes.arg_date, metavar='dd-mm-YYYY',
                         help='dd-mm-YYYY', required=True)
     parser.add_argument("--out",
