@@ -301,98 +301,15 @@ class ServiceAssignmentsMatrix:
         return self._releases[release][assignee]
 
 
-class ServiceAssignmentsDocs:
-    def __init__(self, date_from: str, date_to: str, sas: ServiceAssignmentsMatrix) -> None:
-        self._date_from = date_from
-        self._date_to = date_to
-        self._sas = sas
-
-    def get_docx(self, release: str, assignee: str):
-        docx = Document()
-        table = docx.add_table(1, cols=3, style="Table Grid")
-        table.allow_autofit = True
-        head_cells = table.rows[0].cells
-        for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
-            head_cells[i].text = item
-        row_cells = table.add_row().cells
-        row_cells[0].text = ';\n'.join(self._sas.list_tasks(release, assignee))
-        row_cells[1].text = f"{self._date_from} - {self._date_to}"
-        row_cells[2].text = assignee
-        return docx
-
-
-class DocxPrinter:
-
-    def create_table(self, d):
-        table = d.add_table(1, cols=3, style="Table Grid")
-        table.allow_autofit = True
-        head_cells = table.rows[0].cells
-        for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
-            head_cells[i].text = item
-        for row in table.rows[0]:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    for run in paragraph.runs:
-                        run.font.bold = True
-        return table
-
-    def normalize_date(self, a: datetime.date, b: datetime.date):
-        return "{0}.{1}.{2} - {3}.{4}.{5}".format(a.day, a.month, a.year, b.day, b.month, b.year)
-
-    def create_zip(self, m: Matrix):
-        working_path = os.getcwd()
-        if not os.path.exists(working_path+"/TFS_docx"):
-            os.mkdir("TFS_docx")
-        zippers = working_path+"/TFS_docx"
-
-        for x in m.releases_ever_known:
-            if not os.path.exists(zippers+"/"+x):
-                os.mkdir(x)
-            saving_path = zippers+"/"+x
-            for y in m._rows:
-                if len(m._rows[y].releases[x]) > 0:
-                    docx = Document()
-                    table = self.create_table(docx)
-
-                    row_cells = table.add_row().cells
-                    min_date = datetime.date.max
-                    max_date = datetime.date.min
-                    for i in m._rows[y].releases[x]:
-                        row_cells[0].text += i.title+";\n"
-                        if (i.date_created < min_date):
-                            min_date = i.date_created
-                        if (i.date_closed > max_date):
-                            max_date = i.date_closed
-                    row_cells[1].text = self.normalize_date(min_date, max_date)
-                    row_cells[2].text = y
-
-                    docx.save(saving_path+"/%s.docx" % (y))
-
-        if not os.path.exists(zippers+"/Default"):
-            os.mkdir("Default")
-
-        saving_path = zippers+"/Default"
-        for y in m._rows:
-            if len(m._rows[y].default) > 0:
-                docx = Document()
-                table = self.create_table(docx)
-                row_cells = table.add_row().cells
-                min_date = datetime.date.max
-                max_date = datetime.date.min
-                for i in m._rows[y].default:
-                    row_cells[0].text += i.title+";\n"
-                    if (i.date_created < min_date):
-                        min_date = i.date_created
-                    if (i.date_closed > max_date):
-                        max_date = i.date_closed
-                row_cells[1].text = self.normalize_date(min_date, max_date)
-                row_cells[2].text = y
-
-                docx.save(saving_path+"/%s.docx" % (y))
-
-        with zipfile.ZipFile(working_path+"/TFS_zipped.zip", 'w', zipfile.ZIP_DEFLATED) as archive_file:
-            for dirpath, dirnames, filenames in os.walk(zippers):
-                for filename in filenames:
-                    file_path = os.path.join(dirpath, filename)
-                    archive_file_path = os.path.relpath(file_path, zippers)
-                    archive_file.write(file_path, archive_file_path)
+def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
+    docx = Document()
+    table = docx.add_table(1, cols=3, style="Table Grid")
+    table.allow_autofit = True
+    head_cells = table.rows[0].cells
+    for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
+        head_cells[i].text = item
+    row_cells = table.add_row().cells
+    row_cells[0].text = ';\n'.join(tasks)
+    row_cells[1].text = f"{date_from} - {date_to}"
+    row_cells[2].text = assignee
+    return docx

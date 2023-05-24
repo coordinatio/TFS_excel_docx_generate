@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from src.Task import Task
-from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, ServiceAssignmentsDocs
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx
 
 
 class TestMatrix(TestCase):
@@ -251,6 +251,7 @@ class TestAssignmentsGeneration(TestCase):
         self.assertListEqual(sas.list_tasks('DEFAULT', 'Petr'), ['D'])
         self.assertListEqual(sas.list_tasks('DEFAULT', 'Oleg'), ['E'])
 
+
 class TestDocxGenerator(TestCase):
     def test_happydate(self):
         t = [Task('A', ['Petr'],         'FTW_13.3.7', 'http://'),
@@ -260,7 +261,11 @@ class TestDocxGenerator(TestCase):
              Task('E', ['Oleg'],         '',           'http://')]
         m = Matrix(t, {"Ptr": "Petr", "x": "y"})
         sas = ServiceAssignmentsMatrix(m)
-        sad = ServiceAssignmentsDocs('01-01-2023', '02-02-2023', sas)
-        sad.get_docx('FTW_13.3.7', 'Petr').save('test_service_assigment_FTW1337_Petr.docx')
-        sad.get_docx('DEFAULT',    'Oleg').save('test_service_assigment_DEFAULT_Oleg.docx')
 
+        t = sas.list_tasks('FTW_13.3.7', 'Petr')
+        x = get_docx('Petr', '01-01-2023', '02-02-2023', t)
+        x.save('test_service_assigment_FTW1337_Petr.docx')
+
+        t = sas.list_tasks('DEFAULT', 'Oleg')
+        x = get_docx('Oleg', '01-01-2023', '02-02-2023', t)
+        x.save('test_service_assigment_DEFAULT_Oleg.docx')
