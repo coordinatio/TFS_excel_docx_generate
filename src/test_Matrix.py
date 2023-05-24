@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from src.Task import Task
-from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix
 
 
 class TestMatrix(TestCase):
@@ -21,6 +21,7 @@ class TestMatrix(TestCase):
         self.assertEqual(m.num_tasks_ttl('Petr'), 3)
         self.assertEqual(m.num_tasks_ttl('Foma'), 1)
         self.assertTrue('FTW_13.3.7' in m._rows['Petr'].releases)
+        self.assertTrue('OMG_13.3.8' in m._rows['Petr'].releases)
 
     def test_empty_assignee_control(self):
         t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
@@ -228,10 +229,24 @@ class TestNameFilter(TestCase):
         dst = [nf.normalize(x)[0] for x in src]
         self.assertListEqual(['1', '2'], dst)
 
+
 class TestAssignmentsGeneration(TestCase):
     def test_matrix2assignment_conversion(self):
-        t1 = Task('A', ['Petr'], 'FTW_13.3.7', 'http://')
-        t2 = Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://')
-        t3 = Task('C', ['Ptr'], 'FTW_13.3.7', 'http://')
-        m = Matrix([t1, t2, t3], {"Ptr": "Petr", "x": "y"})
+        t = [Task('A', ['Petr'],         'FTW_13.3.7', 'http://'),
+             Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://'),
+             Task('C', ['Ptr'],          'FTW_13.3.7', 'http://'),
+             Task('D', ['Ptr'],          '',           'http://'),
+             Task('E', ['Oleg'],         '',           'http://')]
+        m = Matrix(t, {"Ptr": "Petr", "x": "y"})
+        sas = ServiceAssignmentsMatrix('01-01-2023', '02-02-2023', m)
 
+        self.assertEqual(len(sas.list_assignees('FTW_13.3.7')), 1)
+        self.assertListEqual(sas.list_tasks('FTW_13.3.7', 'Petr'), ['A', 'C'])
+
+        self.assertEqual(len(sas.list_assignees('OMG_13.3.8')), 2)
+        self.assertListEqual(sas.list_tasks('OMG_13.3.8', 'Foma'), ['B'])
+        self.assertListEqual(sas.list_tasks('OMG_13.3.8', 'Petr'), ['B'])
+
+        self.assertEqual(len(sas.list_assignees('DEFAULT')), 2)
+        self.assertListEqual(sas.list_tasks('DEFAULT', 'Petr'), ['D'])
+        self.assertListEqual(sas.list_tasks('DEFAULT', 'Oleg'), ['E'])

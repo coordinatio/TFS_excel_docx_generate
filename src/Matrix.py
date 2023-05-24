@@ -40,7 +40,7 @@ class Matrix:
                 self.default.append(task)
             self.tasks_ttl += 1
 
-    def __init__(self, tasks: List, names_reference={}):
+    def __init__(self, tasks: List[Task], names_reference={}):
         self.releases_ever_known = {t.release for t in tasks if t.release}
         nn = NameNormalizer(names_reference)
         self._rows = OrderedDict()
@@ -278,6 +278,29 @@ class ExcelPrinter(MatrixPrinter):
 
     def brush_comment(self, col, row, x):
         self.sheet.write_comment(row, col, x)
+
+
+class ServiceAssignmentsMatrix:
+    def __init__(self, date_from: str, date_to: str, m: Matrix) -> None:
+        self.date_from: str = date_from
+        self.date_to: str = date_to
+        self.releases: dict[str, dict[str, List[str]]] = dict()
+        for r in m.releases_ever_known | {'DEFAULT'}:
+            for a in m.list_assignees():
+                tasks = m.get_tasks_in_release(a, r)
+                if tasks:
+                    if r not in self.releases:
+                        self.releases[r] = dict()
+                    self.releases[r][a] = [t.title for t in tasks]
+
+    def list_releases(self) -> List[str]:
+        return [k for k in self.releases]
+
+    def list_assignees(self, release: str) -> List[str]:
+        return [k for k in self.releases[release]]
+
+    def list_tasks(self, release: str, assignee: str) -> List[str]:
+        return self.releases[release][assignee]
 
 
 class DocxPrinter:
