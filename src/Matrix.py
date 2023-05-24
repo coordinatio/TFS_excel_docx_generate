@@ -281,7 +281,8 @@ class ExcelPrinter(MatrixPrinter):
 
 
 class ServiceAssignmentsMatrix:
-    def __init__(self, m: Matrix) -> None:
+    def __init__(self, tasks: List[Task], names_reference={}):
+        m = Matrix(tasks, names_reference)
         self._releases: dict[str, dict[str, List[str]]] = dict()
         for r in m.releases_ever_known | {'DEFAULT'}:
             for a in m.list_assignees():
@@ -313,3 +314,5 @@ def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
     row_cells[1].text = f"{date_from} - {date_to}"
     row_cells[2].text = assignee
     return docx
+
+
