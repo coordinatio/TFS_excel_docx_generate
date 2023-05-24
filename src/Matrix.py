@@ -1,14 +1,11 @@
-from typing import List, OrderedDict, Dict, Tuple
+from typing import List, OrderedDict, Dict
 from math import fsum
-
 from xlsxwriter import Workbook
+from docx import Document
+from io import BytesIO
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from src.Task import Task
-
-from docx import Document
-import zipfile
-import datetime
-import os
 
 
 class NameNormalizer:
@@ -316,3 +313,12 @@ def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
     return docx
 
 
+def get_service_assignments_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str) -> bytes:
+    z = BytesIO()
+    with ZipFile(z, 'a', ZIP_DEFLATED, False) as zf:
+        for r in sam.list_releases():
+            for a in sam.list_assignees(r):
+                o = BytesIO()
+                get_docx(a, date_from, date_to, sam.list_tasks(r, a)).save(o)
+                zf.writestr(f'{r}/{a}.docx', o.getvalue())
+    return z.getvalue()

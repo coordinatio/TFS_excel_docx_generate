@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from src.Task import Task
-from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx, get_service_assignments_zip
 
 
 class TestMatrix(TestCase):
@@ -267,3 +267,15 @@ class TestDocxGenerator(TestCase):
         t = sam.list_tasks('DEFAULT', 'Oleg')
         x = get_docx('Oleg', '01-01-2023', '02-02-2023', t)
         x.save('test_service_assigment_DEFAULT_Oleg.docx')
+
+
+class TestZipper(TestCase):
+    def test_happyday(self):
+        t = [Task('A', ['Petr'],         'FTW_13.3.7', 'http://'),
+             Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://'),
+             Task('C', ['Ptr'],          'FTW_13.3.7', 'http://'),
+             Task('D', ['Ptr'],          '',           'http://'),
+             Task('E', ['Oleg'],         '',           'http://')]
+        s = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
+        with open('test.zip', mode='wb') as f:
+            f.write(get_service_assignments_zip(s, '01-01-2023', '02-02-2023'))
