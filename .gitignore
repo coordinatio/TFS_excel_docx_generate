@@ -1,5 +1,6 @@
 ﻿.vs/*
 *.xlsx
+*.docx
 *.zip
 *__pycache__*
 .cmd
