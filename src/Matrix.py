@@ -1,4 +1,4 @@
-from typing import List, OrderedDict, Dict
+from typing import List, OrderedDict, Dict, Tuple
 from math import fsum
 
 from xlsxwriter import Workbook
@@ -281,26 +281,44 @@ class ExcelPrinter(MatrixPrinter):
 
 
 class ServiceAssignmentsMatrix:
-    def __init__(self, date_from: str, date_to: str, m: Matrix) -> None:
-        self.date_from: str = date_from
-        self.date_to: str = date_to
-        self.releases: dict[str, dict[str, List[str]]] = dict()
+    def __init__(self, m: Matrix) -> None:
+        self._releases: dict[str, dict[str, List[str]]] = dict()
         for r in m.releases_ever_known | {'DEFAULT'}:
             for a in m.list_assignees():
                 tasks = m.get_tasks_in_release(a, r)
                 if tasks:
-                    if r not in self.releases:
-                        self.releases[r] = dict()
-                    self.releases[r][a] = [t.title for t in tasks]
+                    if r not in self._releases:
+                        self._releases[r] = dict()
+                    self._releases[r][a] = [t.title for t in tasks]
 
     def list_releases(self) -> List[str]:
-        return [k for k in self.releases]
+        return [k for k in self._releases]
 
     def list_assignees(self, release: str) -> List[str]:
-        return [k for k in self.releases[release]]
+        return [k for k in self._releases[release]]
 
     def list_tasks(self, release: str, assignee: str) -> List[str]:
-        return self.releases[release][assignee]
+        return self._releases[release][assignee]
+
+
+class ServiceAssignmentsDocs:
+    def __init__(self, date_from: str, date_to: str, sas: ServiceAssignmentsMatrix) -> None:
+        self._date_from = date_from
+        self._date_to = date_to
+        self._sas = sas
+
+    def get_docx(self, release: str, assignee: str):
+        docx = Document()
+        table = docx.add_table(1, cols=3, style="Table Grid")
+        table.allow_autofit = True
+        head_cells = table.rows[0].cells
+        for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
+            head_cells[i].text = item
+        row_cells = table.add_row().cells
+        row_cells[0].text = ';\n'.join(self._sas.list_tasks(release, assignee))
+        row_cells[1].text = f"{self._date_from} - {self._date_to}"
+        row_cells[2].text = assignee
+        return docx
 
 
 class DocxPrinter:
