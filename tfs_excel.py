@@ -63,7 +63,7 @@ def main():
             print(f'#{i} from: {d.date_from} to: {d.date_to} mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}')
 
     elif a.snapshot_get is not None:
-        x = sm.snapshots_list()[a.snapshots_list]
+        x = sm.snapshots_list()[a.snapshot_get]
         l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
         s = ServiceAssignmentsMatrix(l, a.names_reference)
         file_out = a.out if a.out is not None else mkstemp(prefix='tfs_excel_', suffix='.zip')[1]
