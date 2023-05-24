@@ -208,13 +208,13 @@ class MatrixPrinter:
 
 
 class ExcelPrinter(MatrixPrinter):
-    def __init__(self, filename: str, date_from: str, date_to: str) -> None:
-        self.filename = filename
+    def __init__(self, output: str | BytesIO, date_from: str, date_to: str) -> None:
+        self.output = output
         self.d_from = date_from
         self.d_to = date_to
 
     def __enter__(self):
-        self.book = Workbook(self.filename)
+        self.book = Workbook(self.output)
         self.sheet = self.book.add_worksheet(
             f'с {self.d_from} до {self.d_to} вкл.')
 
@@ -277,13 +277,13 @@ class ExcelPrinter(MatrixPrinter):
         self.sheet.write_comment(row, col, x)
 
 
-class ServiceAssignmentsMatrix:
+class ServiceAssignmentsMatrix(Matrix):
     def __init__(self, tasks: List[Task], names_reference={}):
-        m = Matrix(tasks, names_reference)
+        super().__init__(tasks, names_reference)
         self._releases: dict[str, dict[str, List[str]]] = dict()
-        for r in m.releases_ever_known | {'DEFAULT'}:
-            for a in m.list_assignees():
-                tasks = m.get_tasks_in_release(a, r)
+        for r in self.releases_ever_known | {'DEFAULT'}:
+            for a in self.list_assignees():
+                tasks = self.get_tasks_in_release(a, r)
                 if tasks:
                     if r not in self._releases:
                         self._releases[r] = dict()
@@ -292,7 +292,7 @@ class ServiceAssignmentsMatrix:
     def list_releases(self) -> List[str]:
         return [k for k in self._releases]
 
-    def list_assignees(self, release: str) -> List[str]:
+    def list_assignees_by_release(self, release: str) -> List[str]:
         return [k for k in self._releases[release]]
 
     def list_tasks(self, release: str, assignee: str) -> List[str]:
@@ -313,11 +313,15 @@ def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
     return docx
 
 
-def get_service_assignments_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str) -> bytes:
+def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, predef_spend) -> bytes:
     z = BytesIO()
     with ZipFile(z, 'a', ZIP_DEFLATED, False) as zf:
+        o = BytesIO()
+        with ExcelPrinter(o, date_from, date_to) as p:
+            p.print(sam, predef_spend)
+        zf.writestr(f'{date_from}-{date_to}.xlsx', o.getvalue())
         for r in sam.list_releases():
-            for a in sam.list_assignees(r):
+            for a in sam.list_assignees_by_release(r):
                 o = BytesIO()
                 get_docx(a, date_from, date_to, sam.list_tasks(r, a)).save(o)
                 zf.writestr(f'{r}/{a}.docx', o.getvalue())

@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from src.Task import Task
-from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx, get_service_assignments_zip
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx, get_bundle_zip
 
 
 class TestMatrix(TestCase):
@@ -239,14 +239,14 @@ class TestAssignmentsGeneration(TestCase):
              Task('E', ['Oleg'],         '',           'http://')]
         sam = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
 
-        self.assertEqual(len(sam.list_assignees('FTW_13.3.7')), 1)
+        self.assertEqual(len(sam.list_assignees_by_release('FTW_13.3.7')), 1)
         self.assertListEqual(sam.list_tasks('FTW_13.3.7', 'Petr'), ['A', 'C'])
 
-        self.assertEqual(len(sam.list_assignees('OMG_13.3.8')), 2)
+        self.assertEqual(len(sam.list_assignees_by_release('OMG_13.3.8')), 2)
         self.assertListEqual(sam.list_tasks('OMG_13.3.8', 'Foma'), ['B'])
         self.assertListEqual(sam.list_tasks('OMG_13.3.8', 'Petr'), ['B'])
 
-        self.assertEqual(len(sam.list_assignees('DEFAULT')), 2)
+        self.assertEqual(len(sam.list_assignees_by_release('DEFAULT')), 2)
         self.assertListEqual(sam.list_tasks('DEFAULT', 'Petr'), ['D'])
         self.assertListEqual(sam.list_tasks('DEFAULT', 'Oleg'), ['E'])
 
@@ -278,4 +278,4 @@ class TestZipper(TestCase):
              Task('E', ['Oleg'],         '',           'http://')]
         s = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
         with open('test.zip', mode='wb') as f:
-            f.write(get_service_assignments_zip(s, '01-01-2023', '02-02-2023'))
+            f.write(get_bundle_zip(s, '01-01-2023', '02-02-2023', {}))
