@@ -307,7 +307,7 @@ def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
     for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
         head_cells[i].text = item
     row_cells = table.add_row().cells
-    row_cells[0].text = ';\n'.join(tasks)
+    row_cells[0].text = ';\n\n'.join(tasks)
     row_cells[1].text = f"{date_from} - {date_to}"
     row_cells[2].text = assignee
     return docx
