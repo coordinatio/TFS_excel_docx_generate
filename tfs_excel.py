@@ -6,7 +6,7 @@ import os
 
 from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
-from src.Matrix import Matrix, ExcelPrinter, DocxPrinter
+from src.Matrix import Matrix, ExcelPrinter, ServiceAssignmentsMatrix, get_bundle_zip
 from src.Task import DiskSnapshotStorage, SnapshotManager, Task, TaskProvider
 
 class TFS_TaskProvider(TaskProvider):
@@ -30,13 +30,13 @@ def main():
             date_from = a.draft_update[0]
             date_to = a.draft_update[1]
         sm.draft_update(a.pat, date_from, date_to)
-        with ExcelPrinter(a.out, date_from, date_to) as p:
+        with ExcelPrinter(f'{a.out}.xlsx', date_from, date_to) as p:
             l = sm.draft_get_tasks(date_from, date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
     elif a.draft_get is not None:
         x = sm.drafts_list()[a.draft_get]
-        with ExcelPrinter(a.out, x.date_from, x.date_to) as p:
+        with ExcelPrinter(f'{a.out}.xlsx', x.date_from, x.date_to) as p:
             l = sm.draft_get_tasks(x.date_from, x.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
@@ -60,22 +60,20 @@ def main():
 
     elif a.snapshot_get is not None:
         x = sm.snapshots_list()[a.snapshots_list]
-        with ExcelPrinter(a.out, x.date_from, x.date_to) as p:
-            l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
-            p.print(Matrix(l, a.names_reference), a.predefined_spend)
-
-
-    # test = DocxPrinter()
-    # test.create_zip(Matrix(i, a.names_reference))
+        l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
+        s = ServiceAssignmentsMatrix(l, a.names_reference)
+        with open(f'{a.out}.zip', mode='wb') as f:
+            f.write(get_bundle_zip(s, x.date_from, x.date_to, a.predefined_spend))
 
     if any(x is not None for x in (a.draft_get, a.draft_update, a.snapshot_get)):
+        out = f'{a.out}.zip' if a.snapshot_get is not None else f'{a.out}.xlsx'
         if a.no_open:
-            print(f'The xlsx is saved into "{a.out}"')
+            print(f'The xlsx is saved into "{out}"')
         else:
             if platform in ("linux", "linux2"):
-                call(["xdg-open", os.path.abspath(a.out)])
+                call(["xdg-open", os.path.abspath(out)])
             else:
-                os.startfile(a.out)
+                os.startfile(out)
 
 
 if __name__ == "__main__":

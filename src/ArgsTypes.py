@@ -110,9 +110,9 @@ def parse_args():
     mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#')
 
     parser.add_argument("--out",
-                        default=mkstemp(suffix='.xlsx', prefix='tfs_excel_')[1],
-                        metavar='./THE_EXCEL_FILE_TO_WRITE_INTO.xlsx',
-                        help="File to put the results into. Defaults to 'time_report.xlsx'.")
+                        default=mkstemp(prefix='tfs_excel_')[1],
+                        metavar='./FILE_TO_WRITE_INTO.xlsx|.zip',
+                        help="File to put the results into. Defaults to a file in temp folder.")
     parser.add_argument("--no_open", action='store_true',
                         help="Tells if to open the resulting file immediately after creation")
     parser.add_argument('--names_reference', type=ArgsTypes.arg_names_reference_file,
