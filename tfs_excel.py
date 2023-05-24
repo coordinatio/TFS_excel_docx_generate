@@ -2,6 +2,7 @@
 from subprocess import call
 from sys import platform
 from datetime import datetime, timezone, timedelta
+from tempfile import mkstemp
 import os
 
 from src.ArgsTypes import parse_args
@@ -18,6 +19,7 @@ class TFS_TaskProvider(TaskProvider):
 
 def main():
     a = parse_args()
+    file_out = None
 
     sm = SnapshotManager(DiskSnapshotStorage('./.db'), TFS_TaskProvider())
     if a.draft_update is not None:
@@ -30,13 +32,15 @@ def main():
             date_from = a.draft_update[0]
             date_to = a.draft_update[1]
         sm.draft_update(a.pat, date_from, date_to)
-        with ExcelPrinter(f'{a.out}.xlsx', date_from, date_to) as p:
+        file_out = a.out if a.out is not None else mkstemp(prefix='tfs_excel_', suffix='.xlsx')[1]
+        with ExcelPrinter(file_out, date_from, date_to) as p:
             l = sm.draft_get_tasks(date_from, date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
     elif a.draft_get is not None:
         x = sm.drafts_list()[a.draft_get]
-        with ExcelPrinter(f'{a.out}.xlsx', x.date_from, x.date_to) as p:
+        file_out = a.out if a.out is not None else mkstemp(prefix='tfs_excel_', suffix='.xlsx')[1]
+        with ExcelPrinter(file_out, x.date_from, x.date_to) as p:
             l = sm.draft_get_tasks(x.date_from, x.date_to)
             p.print(Matrix(l, a.names_reference), a.predefined_spend)
 
@@ -62,16 +66,16 @@ def main():
         x = sm.snapshots_list()[a.snapshots_list]
         l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
         s = ServiceAssignmentsMatrix(l, a.names_reference)
-        with open(f'{a.out}.zip', mode='wb') as f:
+        file_out = a.out if a.out is not None else mkstemp(prefix='tfs_excel_', suffix='.zip')[1]
+        with open(file_out, mode='wb') as f:
             f.write(get_bundle_zip(s, x.date_from, x.date_to, a.predefined_spend))
 
-    if any(x is not None for x in (a.draft_get, a.draft_update, a.snapshot_get)):
-        out = f'{a.out}.zip' if a.snapshot_get is not None else f'{a.out}.xlsx'
+    if file_out:
         if a.no_open:
-            print(f'The xlsx is saved into "{out}"')
+            print(f'The xlsx is saved into "{file_out}"')
         else:
             if platform in ("linux", "linux2"):
-                call(["xdg-open", os.path.abspath(out)])
+                call(["xdg-open", os.path.abspath(file_out)])
             else:
                 os.startfile(out)
 

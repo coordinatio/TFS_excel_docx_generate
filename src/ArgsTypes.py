@@ -3,7 +3,6 @@ from json import loads
 from os import path
 from math import fsum
 from pathlib import Path
-from tempfile import mkstemp
 import re
 
 
@@ -101,16 +100,21 @@ def parse_args():
 
     mutex = parser.add_mutually_exclusive_group(required=True)
     mutex.add_argument("--draft_update", type=ArgsTypes.arg_dates_interval,
-                       metavar='next|dd.mm.YYYY-dd.mm.YYYY')
+                       metavar='next|dd.mm.YYYY-dd.mm.YYYY',
+                       help=("Reads the data from TFS, puts it into the draft and generates the .xlsx "
+                             "to enable you to verify the data."))
     mutex.add_argument("--drafts_list", action='store_true')
-    mutex.add_argument("--draft_get", type=int, metavar='DRAFT#')
+    mutex.add_argument("--draft_get", type=int, metavar='DRAFT#',
+                       help="Generates the .xlsx from the draft")
     mutex.add_argument("--draft_delete", type=int, metavar='DRAFT#')
-    mutex.add_argument("--draft_approve", type=int, metavar='DRAFT#')
+    mutex.add_argument("--draft_approve", type=int, metavar='DRAFT#',
+                       help="Marks the draft as containing verified information.")
     mutex.add_argument("--snapshots_list", action='store_true')
-    mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#')
+    mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#',
+                       help=("Generates the .zip containing the time distribution's .xlsx "
+                             "and service assignments' .docx files."))
 
     parser.add_argument("--out",
-                        default=mkstemp(prefix='tfs_excel_')[1],
                         metavar='./FILE_TO_WRITE_INTO.xlsx|.zip',
                         help="File to put the results into. Defaults to a file in temp folder.")
     parser.add_argument("--no_open", action='store_true',
