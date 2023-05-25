@@ -10,6 +10,10 @@ class Task:
         self.title = kwargs['title'] if 'title' in kwargs else title
         self.release = kwargs['release'] if 'release' in kwargs else release
         self.link = kwargs['link'] if 'link' in kwargs else link
+        self.tid = kwargs['tid'] if 'tid' in kwargs else None
+        self.parent_title = kwargs['parent_title'] if 'parent_title' in kwargs else None
+        self.project = kwargs['project'] if 'project' in kwargs else None
+        self.essence = ''
 
     def __eq__(self, other) -> bool:
         if len(self.assignees) != len(other.assignees):
