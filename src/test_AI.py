@@ -8,16 +8,16 @@ from src.Task import Task
 
 class MockFastStorage(FastStorage):
     def __init__(self, known_ids: set[str]) -> None:
-        self.known_ids = known_ids
+        self.known_ids = deepcopy(known_ids)
 
     def read_essense(self, tasks: List[Task]) -> Tuple[List[Task], List[Task]]:
         known = [deepcopy(t) for t in tasks if t.tid in self.known_ids]
         for k in known:
-            k.essence = 'KNOWN'
-        return (known, [t for t in tasks if t.tid not in self.known_ids])
+            k.essence = f'KNOWN_{k.tid}_KNOWN'
+        return (known, [deepcopy(t) for t in tasks if t.tid not in self.known_ids])
 
     def memorize_essense(self, tasks: List[Task]):
-        self.known_ids.union({t.tid for t in tasks})
+        self.known_ids |= {t.tid for t in tasks}
 
 
 class MockAI(AI):
@@ -50,7 +50,7 @@ class TestCache(TestCase):
         z_in = []
         for t in t_out:
             if t.tid in ids_known:
-                self.assertEqual('KNOWN', t.essence)
+                self.assertEqual(f'KNOWN_{t.tid}_KNOWN', t.essence)
             else:
                 self.assertEqual(f'MockAI_{t.tid}_MockAI', t.essence)
                 z_in.append(t)
@@ -60,4 +60,4 @@ class TestCache(TestCase):
         self.assertEqual(len(z_in), len(z_out))
         self.assertEqual({t.tid for t in z_in}, {t.tid for t in z_out})
         for z in z_out:
-            self.assertEqual(z.essence, 'KNOWN')
+            self.assertEqual(z.essence, f'KNOWN_{z.tid}_KNOWN')

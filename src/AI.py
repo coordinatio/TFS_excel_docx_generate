@@ -25,4 +25,9 @@ class Cache:
         self.ai = ai
 
     def filter(self, tasks: List[Task]) -> List[Task]:
-        raise NotImplementedError
+        k, unk = self.fs.read_essense(tasks)
+        if not unk:
+            return k
+        gen = self.ai.generate_essense(unk) 
+        self.fs.memorize_essense(gen)
+        return k + gen
