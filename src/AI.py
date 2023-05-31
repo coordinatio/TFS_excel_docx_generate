@@ -20,6 +20,7 @@ class FastStorage:
     def memorize_essense(self, tasks: List[Task]):
         raise NotImplementedError
 
+
 class SQlite(FastStorage):
     def __init__(self, path_db: str) -> None:
         self.db = Path(path_db)
@@ -42,7 +43,7 @@ class SQlite(FastStorage):
         known: List[Task] = []
         unknown: List[Task] = []
         for t in tasks:
-            q = "SELECT essence FROM essence_cache WHERE project=? AND tid=?"
+            q = "SELECT essence FROM essence_cache WHERE project=? AND tid=?;"
             e = self.con.execute(q, (t.project, t.tid)).fetchone()
             c = deepcopy(t)
             if not e:
@@ -52,12 +53,25 @@ class SQlite(FastStorage):
                 known.append(c)
         return (known, unknown)
 
-
+    def memorize_essense(self, tasks: List[Task]):
+        for t in tasks:
+            d = {'project': t.project,
+                 'tid': t.tid,
+                 'parent_title': t.parent_title,
+                 'title': t.title,
+                 'essence': t.essence}
+            q = ("INSERT INTO essence_cache"
+                 " VALUES(:project, :tid, :parent_title, :title, :essence)"
+                 " ON CONFLICT(project, tid) DO"
+                 " UPDATE SET parent_title=:parent_title, title=:title, essence=:essence;")
+            with self.con:
+                self.con.execute(q, d)
 
 
 class AI:
     def generate_essense(self, tasks: List[Task]) -> List[Task]:
         raise NotImplementedError
+
 
 class Cache:
     def __init__(self, fs: FastStorage, ai: AI) -> None:
@@ -68,6 +82,6 @@ class Cache:
         k, unk = self.fs.read_essense(tasks)
         if not unk:
             return k
-        gen = self.ai.generate_essense(unk) 
+        gen = self.ai.generate_essense(unk)
         self.fs.memorize_essense(gen)
         return k + gen

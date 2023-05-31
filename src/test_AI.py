@@ -81,8 +81,16 @@ class TestFastStorage(TestCase):
         self.assertEqual(0, len(known))
 
         for unk in unknown:
-            unk.essence = "Съешь ещё этих мягких французских булок да выпей же чаю."
+            unk.essence = f'{unk.project}_{unk.tid} суть суть суть'
         s.memorize_essense(unknown)
 
-        t.append(Task(**a, tid='7777', title='77', parent_title='70', project='Y'))
+        t.append(Task(**a, tid='7777', title='77',
+                 parent_title='70', project='Y'))
 
+        known, unknown = s.read_essense(deepcopy(t))
+        self.assertEqual(1, len(unknown))
+        self.assertTupleEqual(
+            ('7777', 'Y'), (unknown[0].tid, unknown[0].project))
+        self.assertEqual(6, len(known))
+        for k in known:
+            self.assertEqual(k.essence, f'{k.project}_{k.tid} суть суть суть')
