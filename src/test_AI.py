@@ -3,7 +3,7 @@ from unittest import TestCase
 from copy import deepcopy
 from tempfile import mkstemp
 
-from src.AI import FastStorage, SQlite, AI, Cache
+from src.AI import ChatGPT, FastStorage, SQlite, AI, Cache
 from src.Task import Task
 
 
@@ -94,3 +94,27 @@ class TestFastStorage(TestCase):
         self.assertEqual(6, len(known))
         for k in known:
             self.assertEqual(k.essence, f'{k.project}_{k.tid} суть суть суть')
+
+
+class OfflineAI(ChatGPT):
+    def talk_to_ChatGPT(self, parent_title: str, title: str, body: str) -> str:
+        return 'OfflineAI'
+
+
+class TestAI(TestCase):
+    # def test_for_manual_prompt_debugging(self):
+    #     c = ChatGPT('%PLACE YOUR APTI KEY HERE%')
+    #     print(c.talk_to_ChatGPT('Сервер-приложений альфа-версия', 'Починить HTTPS', ''))
+
+    def test_happyday(self):
+        a = {'assignees': [], 'release': '', 'link': '', 'project': 'X'}
+        t = []
+        for i in range(1, 4):
+            t.append(Task(**a, tid=f'{i}', title=f'{i}', parent_title=f'{i}'))
+
+        oai = OfflineAI('')
+
+        out = oai.generate_essense(t)
+
+        for x in out:
+            self.assertEqual('OfflineAI', x.essence)

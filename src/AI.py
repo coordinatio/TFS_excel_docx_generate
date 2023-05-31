@@ -1,10 +1,13 @@
+# -*- coding: utf-8 -*-
 from typing import List, Tuple
 from pathlib import Path
 from sqlite3 import connect
-
-from tfs import deepcopy
+from copy import deepcopy
+from progress.bar import Bar
 
 from src.Task import Task
+
+import openai
 
 
 class FastStorage:
@@ -71,6 +74,35 @@ class SQlite(FastStorage):
 class AI:
     def generate_essense(self, tasks: List[Task]) -> List[Task]:
         raise NotImplementedError
+
+
+class ChatGPT(AI):
+    def __init__(self, api_key) -> None:
+        openai.api_key = api_key
+
+    def generate_essense(self, tasks: List[Task]) -> List[Task]:
+        out: List[Task] = []
+        with Bar('Talking with AI', max=len(tasks)) as bar:
+            for t in tasks:
+                o = deepcopy(t)
+                o.essence = self.talk_to_ChatGPT(
+                    o.parent_title, o.title, o.body)
+                bar.next()
+        return out
+
+    def talk_to_ChatGPT(self, parent_title: str | None, title: str, body: str | None) -> str:
+        m = [
+            {'role': 'system',
+             'content': ('На основе информации из системы отслеживания'
+                         ' работы сформулируй задачу одним кратким предложением.')},
+            {'role': 'user',
+             'content': (f'Заголовок задачи: "{parent_title}",'
+                         f' заголовок подзадачи: "{title}",'
+                         f' тело подзадачи "{body}".')}
+        ]
+        c = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo', messages=m, temperature=0.5)
+        return c.choices[0].message.content
 
 
 class Cache:
