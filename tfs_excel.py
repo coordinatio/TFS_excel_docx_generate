@@ -26,7 +26,8 @@ def main():
         date_from = ''
         date_to = ''
         if isinstance(a.draft_update, bool):
-            date_from = sorted([(datetime.strptime(x.date_to, '%d-%m-%Y'), x) for x in sm.snapshots_list()])[0][1].date_to
+            date_last = sorted([(datetime.strptime(x.date_to, '%d-%m-%Y'), x) for x in sm.snapshots_list()])[0][1].date_to
+            date_from = datetime.strftime(datetime.strptime(date_last, '%d-%m-%Y') + timedelta(1), '%d-%m-%Y')
             date_to = datetime.strftime(datetime.now() - timedelta(1), '%d-%m-%Y')
         else:
             date_from = a.draft_update[0]
