@@ -287,7 +287,7 @@ class ServiceAssignmentsMatrix(Matrix):
                 if tasks:
                     if r not in self._releases:
                         self._releases[r] = dict()
-                    self._releases[r][a] = [t.title for t in tasks]
+                    self._releases[r][a] = [t.essence for t in tasks]
 
     def list_releases(self) -> List[str]:
         return [k for k in self._releases]

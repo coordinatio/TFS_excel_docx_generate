@@ -9,6 +9,7 @@ from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
 from src.Matrix import Matrix, ExcelPrinter, ServiceAssignmentsMatrix, get_bundle_zip
 from src.Task import DiskSnapshotStorage, SnapshotManager, Task, TaskProvider
+from src.AI import Cache, SQlite, ChatGPT
 
 class TFS_TaskProvider(TaskProvider):
     def get_tasks(self, pat, date_from, date_to) -> list[Task]:
@@ -66,7 +67,9 @@ def main():
     elif a.snapshot_get is not None:
         x = sm.snapshots_list()[a.snapshot_get]
         l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
-        s = ServiceAssignmentsMatrix(l, a.names_reference)
+        c = Cache(SQlite('./.essence_cache.sqlite'), ChatGPT(a.key)) 
+        ll = c.filter(l)
+        s = ServiceAssignmentsMatrix(ll, a.names_reference)
         file_out = a.out if a.out is not None else mkstemp(prefix='tfs_excel_', suffix='.zip')[1]
         with open(file_out, mode='wb') as f:
             f.write(get_bundle_zip(s, x.date_from, x.date_to, a.predefined_spend))

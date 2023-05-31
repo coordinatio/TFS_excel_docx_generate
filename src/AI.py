@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from time import sleep
 from typing import List, Tuple
 from pathlib import Path
 from sqlite3 import connect
@@ -87,6 +88,7 @@ class ChatGPT(AI):
                 o = deepcopy(t)
                 o.essence = self.talk_to_ChatGPT(
                     o.parent_title, o.title, o.body)
+                sleep(21)
                 bar.next()
         return out
 

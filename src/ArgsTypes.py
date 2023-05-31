@@ -98,6 +98,16 @@ def parse_args():
         with pat_file.open() as f:
             parser.add_argument('--pat', default=f.read(), help=pat_help)
 
+    key_help = ('The OpenAI API access token. '
+                'You can provide the value by creating ".key" file with it in the script\'s work directory, '
+                'thus you can omit the explicit argument while the value is read implicitly from the file.')
+    key_file = Path('./.key')
+    if not key_file.is_file():
+        parser.add_argument('--key', required=True, help=key_help)
+    else:
+        with key_file.open() as f:
+            parser.add_argument('--key', default=f.read(), help=key_help)
+
     mutex = parser.add_mutually_exclusive_group(required=True)
     mutex.add_argument("--draft_update", type=ArgsTypes.arg_dates_interval,
                        metavar='next|dd.mm.YYYY-dd.mm.YYYY',
