@@ -13,7 +13,9 @@ class Handler():
             x = {'title': self.get_title(w),
                  'assignees': self.get_assignees(w),
                  'release': self.get_release(w),
-                 'link': self.get_link(w)}
+                 'link': self.get_link(w),
+                 'parent_title': self.get_parent_title(w),
+                 'body': self.get_body(w)}
             tasks.append(Task(**x))
         self.tasks = tasks
 
@@ -30,6 +32,15 @@ class Handler():
 
     def retrieve(self, pat, date_from, date_to):
         return []
+
+    def get_parent_title(self, workitem) -> str | None:
+        p = workitem.parent
+        if not p:
+            return None
+        return self.get_title(p)
+
+    def get_body(self, workitem) -> str:
+        return str(workitem['System.Description'])
 
     def get_title(self, workitem):
         return str(workitem['Title'])
