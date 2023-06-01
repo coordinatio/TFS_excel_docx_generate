@@ -94,20 +94,24 @@ class ChatGPT(AI):
     def generate_essense(self, task: Task) -> Task:
         self._limit_RPM_rate()
         o = deepcopy(task)
-        quota_tries = 3
-        while True:
-            try:
-                o.essence = self.talk_to_ChatGPT(o.parent_title, o.title, o.body)
-                break
-            except(openai.error.RateLimitError) as e:
-                if quota_tries <= 0:
-                    raise e
-                delay_sec = 63
-                print(('\nThe rate limit hit.'
-                       f' Sleeping for {delay_sec} seconds.'
-                       f' {quota_tries} attempts left. ({e})\n'))
-                quota_tries -= 1
-                self.sleep(delay_sec)
+        if not o.parent_title and not o.body:
+            o.essence = o.title  # no need for an AI if we have no data
+        else:
+            quota_tries = 3
+            while True:
+                try:
+                    o.essence = self.talk_to_ChatGPT(
+                        o.parent_title, o.title, o.body)
+                    break
+                except (openai.error.RateLimitError) as e:
+                    if quota_tries <= 0:
+                        raise e
+                    delay_sec = 63
+                    print(('\nThe rate limit hit.'
+                           f' Sleeping for {delay_sec} seconds.'
+                           f' {quota_tries} attempts left. ({e})\n'))
+                    quota_tries -= 1
+                    self.sleep(delay_sec)
         return o
 
     def _limit_RPM_rate(self):
@@ -120,7 +124,10 @@ class ChatGPT(AI):
         m = [
             {'role': 'system',
              'content': ('На основе информации из системы отслеживания'
-                         ' работы сформулируй задачу одним кратким предложением.')},
+                         ' работы сформулируй задачу одним кратким предложением.'
+                         ' Не начинай предложения со слов "Задача: ",  "Сформулированная задача:"'
+                         ' или подобных, сразу переходи к сути.'
+                         ' Не проси более подробную информацию, работай с тем, что есть.')},
             {'role': 'user',
              'content': (f'Заголовок задачи: "{parent_title}",'
                          f' заголовок подзадачи: "{title}",'
