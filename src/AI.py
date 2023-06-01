@@ -92,11 +92,11 @@ class ChatGPT(AI):
         self.sleep = sleep
 
     def generate_essense(self, task: Task) -> Task:
-        self._limit_RPM_rate()
         o = deepcopy(task)
         if not o.parent_title and not o.body:
             o.essence = o.title  # no need for an AI if we have no data
         else:
+            self._limit_RPM_rate()
             quota_tries = 3
             while True:
                 try:
