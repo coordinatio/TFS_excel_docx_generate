@@ -15,7 +15,9 @@ class Handler():
                  'release': self.get_release(w),
                  'link': self.get_link(w),
                  'parent_title': self.get_parent_title(w),
-                 'body': self.get_body(w)}
+                 'body': self.get_body(w), 
+                 'tid': self.get_id(w),
+                 'project': self.get_project(w)}
             tasks.append(Task(**x))
         self.tasks = tasks
 
@@ -44,6 +46,12 @@ class Handler():
 
     def get_title(self, workitem):
         return str(workitem['Title'])
+
+    def get_id(self, workitem) -> str:
+        return workitem.id
+
+    def get_project(self, workitem) -> str:
+        return str(workitem['System.TeamProject'])
 
     def get_release(self, workitem):
         return ''

@@ -237,18 +237,20 @@ class TestAssignmentsGeneration(TestCase):
              Task('C', ['Ptr'],          'FTW_13.3.7', 'http://'),
              Task('D', ['Ptr'],          '',           'http://'),
              Task('E', ['Oleg'],         '',           'http://')]
+        for x in t:
+            x.essence = x.title
         sam = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
 
         self.assertEqual(len(sam.list_assignees_by_release('FTW_13.3.7')), 1)
-        self.assertListEqual(sam.list_tasks('FTW_13.3.7', 'Petr'), ['A', 'C'])
+        self.assertListEqual(sam.list_essences('FTW_13.3.7', 'Petr'), ['A', 'C'])
 
         self.assertEqual(len(sam.list_assignees_by_release('OMG_13.3.8')), 2)
-        self.assertListEqual(sam.list_tasks('OMG_13.3.8', 'Foma'), ['B'])
-        self.assertListEqual(sam.list_tasks('OMG_13.3.8', 'Petr'), ['B'])
+        self.assertListEqual(sam.list_essences('OMG_13.3.8', 'Foma'), ['B'])
+        self.assertListEqual(sam.list_essences('OMG_13.3.8', 'Petr'), ['B'])
 
         self.assertEqual(len(sam.list_assignees_by_release('DEFAULT')), 2)
-        self.assertListEqual(sam.list_tasks('DEFAULT', 'Petr'), ['D'])
-        self.assertListEqual(sam.list_tasks('DEFAULT', 'Oleg'), ['E'])
+        self.assertListEqual(sam.list_essences('DEFAULT', 'Petr'), ['D'])
+        self.assertListEqual(sam.list_essences('DEFAULT', 'Oleg'), ['E'])
 
 
 class TestDocxGenerator(TestCase):
@@ -260,11 +262,11 @@ class TestDocxGenerator(TestCase):
              Task('E', ['Oleg'],         '',           'http://')]
         sam = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
 
-        t = sam.list_tasks('FTW_13.3.7', 'Petr')
+        t = sam.list_essences('FTW_13.3.7', 'Petr')
         x = get_docx('Petr', '01-01-2023', '02-02-2023', t)
         x.save('test_service_assigment_FTW1337_Petr.docx')
 
-        t = sam.list_tasks('DEFAULT', 'Oleg')
+        t = sam.list_essences('DEFAULT', 'Oleg')
         x = get_docx('Oleg', '01-01-2023', '02-02-2023', t)
         x.save('test_service_assigment_DEFAULT_Oleg.docx')
 

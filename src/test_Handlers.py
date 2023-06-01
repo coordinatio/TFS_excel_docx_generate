@@ -7,6 +7,11 @@ class MockWorkitem:
     def __init__(self, d: Dict, link='') -> None:
         self.parent = None
         self.d = d
+        if 'System.Description' not in self.d:
+            self.d['System.Description'] = ''
+        if 'System.TeamProject' not in self.d:
+            self.d['System.TeamProject'] = 'UnitTest'
+        self.id = f'id_id_{d["Title"]}'
         self._links = {'html': {'href': link}}
 
     def __getitem__(self, key):

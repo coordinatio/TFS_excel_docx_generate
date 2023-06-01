@@ -66,9 +66,8 @@ def main():
 
     elif a.snapshot_get is not None:
         x = sm.snapshots_list()[a.snapshot_get]
-        l = sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
-        c = Cache(SQlite('./.essence_cache.sqlite'), ChatGPT(a.key)) 
-        ll = c.filter(l)
+        c = Cache(SQlite('./.essence_cache.sqlite'), ChatGPT(a.key, a.ai_rate_sec)) 
+        ll = c.filter(sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime))
         s = ServiceAssignmentsMatrix(ll, a.names_reference)
         file_out = a.out if a.out is not None else mkstemp(prefix='tfs_excel_', suffix='.zip')[1]
         with open(file_out, mode='wb') as f:

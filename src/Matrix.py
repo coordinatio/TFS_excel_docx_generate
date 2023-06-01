@@ -295,7 +295,7 @@ class ServiceAssignmentsMatrix(Matrix):
     def list_assignees_by_release(self, release: str) -> List[str]:
         return [k for k in self._releases[release]]
 
-    def list_tasks(self, release: str, assignee: str) -> List[str]:
+    def list_essences(self, release: str, assignee: str) -> List[str]:
         return self._releases[release][assignee]
 
 
@@ -323,6 +323,6 @@ def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, 
         for r in sam.list_releases():
             for a in sam.list_assignees_by_release(r):
                 o = BytesIO()
-                get_docx(a, date_from, date_to, sam.list_tasks(r, a)).save(o)
+                get_docx(a, date_from, date_to, sam.list_essences(r, a)).save(o)
                 zf.writestr(f'{r}/{a}.docx', o.getvalue())
     return z.getvalue()

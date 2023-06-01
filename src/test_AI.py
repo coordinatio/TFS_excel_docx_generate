@@ -1,5 +1,6 @@
 from typing import List, Tuple
 from unittest import TestCase
+from unittest.mock import MagicMock
 from copy import deepcopy
 from tempfile import mkstemp
 
@@ -17,15 +18,14 @@ class MockFastStorage(FastStorage):
             k.essence = f'KNOWN_{k.tid}_KNOWN'
         return (known, [deepcopy(t) for t in tasks if t.tid not in self.known_ids])
 
-    def memorize_essense(self, tasks: List[Task]):
-        self.known_ids |= {t.tid for t in tasks}
+    def memorize_essense(self, task: Task):
+        self.known_ids |= {task.tid}
 
 
 class MockAI(AI):
-    def generate_essense(self, tasks: List[Task]) -> List[Task]:
-        for t in tasks:
-            t.essence = f'MockAI_{t.tid}_MockAI'
-        return tasks
+    def generate_essense(self, task: Task) -> Task:
+        task.essence = f'MockAI_{task.tid}_MockAI'
+        return task
 
 
 class TestCache(TestCase):
@@ -82,7 +82,7 @@ class TestFastStorage(TestCase):
 
         for unk in unknown:
             unk.essence = f'{unk.project}_{unk.tid} суть суть суть'
-        s.memorize_essense(unknown)
+            s.memorize_essense(unk)
 
         t.append(Task(**a, tid='7777', title='77',
                  parent_title='70', project='Y'))
@@ -95,10 +95,22 @@ class TestFastStorage(TestCase):
         for k in known:
             self.assertEqual(k.essence, f'{k.project}_{k.tid} суть суть суть')
 
+    def test_empty_ids(self):
+        a = {'assignees': [], 'release': '', 'link': '',
+             'title': 't', 'parent_title': 'pt'}
+        s = SQlite(mkstemp(suffix='.db')[1])
 
-class OfflineAI(ChatGPT):
-    def talk_to_ChatGPT(self, parent_title: str, title: str, body: str) -> str:
-        return 'OfflineAI'
+        t = Task(**a, tid=None, project='X')
+        with self.assertRaises(RuntimeError):
+            s.memorize_essense(t)
+
+        t = Task(**a, tid='1111', project=None)
+        with self.assertRaises(RuntimeError):
+            s.memorize_essense(t)
+
+        t = Task(**a, tid=None, project=None)
+        with self.assertRaises(RuntimeError):
+            s.memorize_essense(t)
 
 
 class TestAI(TestCase):
@@ -107,14 +119,25 @@ class TestAI(TestCase):
     #     print(c.talk_to_ChatGPT('Сервер-приложений альфа-версия', 'Починить HTTPS', ''))
 
     def test_happyday(self):
-        a = {'assignees': [], 'release': '', 'link': '', 'project': 'X'}
-        t = []
-        for i in range(1, 4):
-            t.append(Task(**a, tid=f'{i}', title=f'{i}', parent_title=f'{i}'))
+        t = Task(assignees=[], release='', link='', project='X',
+                 tid='TID', title='T', parent_title='PT', body='B')
 
-        oai = OfflineAI('')
+        ai = ChatGPT('', 21)
+        ai.now = MagicMock(return_value=100)
+        ai.sleep = MagicMock()
+        ai.talk_to_ChatGPT = MagicMock(return_value='MockAI')
 
-        out = oai.generate_essense(t)
+        out = ai.generate_essense(t)
 
-        for x in out:
-            self.assertEqual('OfflineAI', x.essence)
+        self.assertEqual('MockAI', out.essence)  # talk occured
+        ai.talk_to_ChatGPT.assert_called_with('PT', 'T', 'B')
+        ai.sleep.assert_not_called()  # no sleep during the first call
+        self.assertEqual(ai.last_request_ts, 100)  # last_request_ts updated
+
+        ai.now = MagicMock(return_value=110)
+        ai.sleep = MagicMock()
+
+        out = ai.generate_essense(t)
+
+        # rate 21sec, 10 sec passed => must sleep for 11 sec
+        ai.sleep.assert_called_once_with(11)

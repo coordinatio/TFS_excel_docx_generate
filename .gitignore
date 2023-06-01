@@ -6,4 +6,5 @@
 .cmd
 .db
 .pat
+.key
 /TFS_docx

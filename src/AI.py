@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 from time import sleep
 from typing import List, Tuple
 from pathlib import Path
-from sqlite3 import connect
+from sqlite3 import connect, IntegrityError
 from copy import deepcopy
 from progress.bar import Bar
 
@@ -17,11 +18,11 @@ class FastStorage:
         Fill the stored essence into the list of tasks.
 
         :param List[Task] tasks: the list of tasks to consider
-        :return: a Tuple of two Lists of Tasks, the first are the filled ones, the second are unknown ones 
+        :return: a Tuple of two Lists of Tasks, the first are the filled ones, the second are unknown ones
         """
         raise NotImplementedError
 
-    def memorize_essense(self, tasks: List[Task]):
+    def memorize_essense(self, task: Task):
         raise NotImplementedError
 
 
@@ -33,11 +34,11 @@ class SQlite(FastStorage):
                 raise ValueError("Invalid SQlite DB path")
             con = connect(self.db)
             con.execute(("CREATE TABLE essence_cache ("
-                         "   project TEXT, "
-                         "   tid TEXT, "
+                         "   project TEXT NOT NULL, "
+                         "   tid TEXT NOT NULL, "
                          "   parent_title TEXT, "
                          "   title TEXT, "
-                         "   essence TEXT, "
+                         "   essence TEXT NOT NULL, "
                          "   PRIMARY KEY (project, tid)"
                          ");"))
             con.close()
@@ -57,40 +58,45 @@ class SQlite(FastStorage):
                 known.append(c)
         return (known, unknown)
 
-    def memorize_essense(self, tasks: List[Task]):
-        for t in tasks:
-            d = {'project': t.project,
-                 'tid': t.tid,
-                 'parent_title': t.parent_title,
-                 'title': t.title,
-                 'essence': t.essence}
-            q = ("INSERT INTO essence_cache"
-                 " VALUES(:project, :tid, :parent_title, :title, :essence)"
-                 " ON CONFLICT(project, tid) DO"
-                 " UPDATE SET parent_title=:parent_title, title=:title, essence=:essence;")
+    def memorize_essense(self, task: Task):
+        d = {'project': task.project,
+             'tid': task.tid,
+             'parent_title': task.parent_title,
+             'title': task.title,
+             'essence': task.essence}
+        q = ('INSERT INTO essence_cache'
+             ' VALUES(:project, :tid, :parent_title, :title, :essence)'
+             ' ON CONFLICT(project, tid) DO'
+             ' UPDATE SET parent_title=:parent_title, title=:title, essence=:essence;')
+        try:
             with self.con:
                 self.con.execute(q, d)
+        except (IntegrityError) as e:
+            raise RuntimeError(
+                f'SQlite error {e.sqlite_errorcode}: {e.sqlite_errorname}')
 
 
 class AI:
-    def generate_essense(self, tasks: List[Task]) -> List[Task]:
+    def generate_essense(self, task: Task) -> Task:
         raise NotImplementedError
 
 
 class ChatGPT(AI):
-    def __init__(self, api_key) -> None:
+    def __init__(self, api_key: str, max_query_rate_sec: float) -> None:
         openai.api_key = api_key
+        self.max_rate_sec = max_query_rate_sec
+        self.last_request_ts: float = 0.0
+        self.now = datetime.now().astimezone().timestamp
+        self.sleep = sleep
 
-    def generate_essense(self, tasks: List[Task]) -> List[Task]:
-        out: List[Task] = []
-        with Bar('Talking with AI', max=len(tasks)) as bar:
-            for t in tasks:
-                o = deepcopy(t)
-                o.essence = self.talk_to_ChatGPT(
-                    o.parent_title, o.title, o.body)
-                sleep(21)
-                bar.next()
-        return out
+    def generate_essense(self, task: Task) -> Task:
+        delta_sec: float = self.now() - self.last_request_ts
+        if delta_sec < self.max_rate_sec:
+            self.sleep(self.max_rate_sec - delta_sec)
+        self.last_request_ts = self.now()
+        o = deepcopy(task)
+        o.essence = self.talk_to_ChatGPT(o.parent_title, o.title, o.body)
+        return o
 
     def talk_to_ChatGPT(self, parent_title: str | None, title: str, body: str | None) -> str:
         m = [
@@ -116,6 +122,11 @@ class Cache:
         k, unk = self.fs.read_essense(tasks)
         if not unk:
             return k
-        gen = self.ai.generate_essense(unk)
-        self.fs.memorize_essense(gen)
+        gen: List[Task] = []
+        with Bar('Talking with the AI:', max=len(unk)) as bar:
+            for t in unk:
+                o = self.ai.generate_essense(t)
+                self.fs.memorize_essense(o)
+                gen.append(o)
+                bar.next()
         return k + gen
