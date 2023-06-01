@@ -79,7 +79,7 @@ class ArgsTypes:
         if not m:
             raise ArgumentTypeError(("Please provide the interval in the following format "
                                      "dd.mm.YYYY-dd.mm.YYYY (you can use '-','/',' ' instead of '.'). "
-                                     "You can also use the keywork 'next' to calculate the interval "
+                                     "You can also use the keyword 'next' to calculate the interval "
                                      "automatically based on the latest snapshot available."))
         return (f'{m.group(2)}-{m.group(3)}-{m.group(4)}', f'{m.group(6)}-{m.group(7)}-{m.group(8)}')
 

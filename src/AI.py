@@ -37,7 +37,8 @@ class SQlite(FastStorage):
                          "   project TEXT NOT NULL, "
                          "   tid TEXT NOT NULL, "
                          "   parent_title TEXT, "
-                         "   title TEXT, "
+                         "   title TEXT NOT NULL, "
+                         "   body TEXT, "
                          "   essence TEXT NOT NULL, "
                          "   PRIMARY KEY (project, tid)"
                          ");"))
@@ -63,11 +64,12 @@ class SQlite(FastStorage):
              'tid': task.tid,
              'parent_title': task.parent_title,
              'title': task.title,
+             'body': task.body,
              'essence': task.essence}
         q = ('INSERT INTO essence_cache'
-             ' VALUES(:project, :tid, :parent_title, :title, :essence)'
+             ' VALUES(:project, :tid, :parent_title, :title, :body, :essence)'
              ' ON CONFLICT(project, tid) DO'
-             ' UPDATE SET parent_title=:parent_title, title=:title, essence=:essence;')
+             ' UPDATE SET parent_title=:parent_title, title=:title, essence=:essence, body=:body;')
         try:
             with self.con:
                 self.con.execute(q, d)
