@@ -115,6 +115,10 @@ def parse_args():
                        metavar='next|dd.mm.YYYY-dd.mm.YYYY',
                        help=("Reads the data from TFS, puts it into the draft and generates the .xlsx "
                              "to enable you to verify the data."))
+    mutex.add_argument("--cache_fill", type=ArgsTypes.arg_dates_interval,
+                       metavar='next|dd.mm.YYYY-dd.mm.YYYY',
+                       help=("Reads tasks from TFS and generates description with the AI, putting it "
+                             "into the cache for later use."))
     mutex.add_argument("--drafts_list", action='store_true')
     mutex.add_argument("--draft_get", type=int, metavar='DRAFT#',
                        help="Generates the .xlsx from the draft")

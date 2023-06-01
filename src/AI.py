@@ -5,7 +5,7 @@ from typing import List, Tuple
 from pathlib import Path
 from sqlite3 import connect, IntegrityError
 from copy import deepcopy
-from progress.bar import Bar
+from progress.bar import ChargingBar
 
 from src.Task import Task
 
@@ -148,7 +148,7 @@ class Cache:
         if not unk:
             return k
         gen: List[Task] = []
-        with Bar('Talking with the AI:', max=len(unk)) as bar:
+        with ChargingBar('Talking with the AI:', max=len(unk)) as bar:
             for t in unk:
                 o = self.ai.generate_essense(t)
                 self.fs.memorize_essense(o)
