@@ -92,13 +92,29 @@ class ChatGPT(AI):
         self.sleep = sleep
 
     def generate_essense(self, task: Task) -> Task:
+        self._limit_RPM_rate()
+        o = deepcopy(task)
+        quota_tries = 3
+        while True:
+            try:
+                o.essence = self.talk_to_ChatGPT(o.parent_title, o.title, o.body)
+                break
+            except(openai.error.RateLimitError) as e:
+                if quota_tries <= 0:
+                    raise e
+                delay_sec = 63
+                print(('\nThe rate limit hit.'
+                       f' Sleeping for {delay_sec} seconds.'
+                       f' {quota_tries} attempts left. ({e})\n'))
+                quota_tries -= 1
+                self.sleep(delay_sec)
+        return o
+
+    def _limit_RPM_rate(self):
         delta_sec: float = self.now() - self.last_request_ts
         if delta_sec < self.max_rate_sec:
             self.sleep(self.max_rate_sec - delta_sec)
         self.last_request_ts = self.now()
-        o = deepcopy(task)
-        o.essence = self.talk_to_ChatGPT(o.parent_title, o.title, o.body)
-        return o
 
     def talk_to_ChatGPT(self, parent_title: str | None, title: str, body: str | None) -> str:
         m = [

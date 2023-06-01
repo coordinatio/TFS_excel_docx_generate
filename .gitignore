@@ -7,4 +7,5 @@
 .db
 .pat
 .key
+.essence_cache.sqlite
 /TFS_docx

@@ -1,11 +1,13 @@
 from typing import List, Tuple
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from copy import deepcopy
 from tempfile import mkstemp
 
 from src.AI import ChatGPT, FastStorage, SQlite, AI, Cache
 from src.Task import Task
+
+from openai.error import RateLimitError
 
 
 class MockFastStorage(FastStorage):
@@ -118,7 +120,7 @@ class TestAI(TestCase):
     #     c = ChatGPT('%PLACE YOUR APTI KEY HERE%')
     #     print(c.talk_to_ChatGPT('Сервер-приложений альфа-версия', 'Починить HTTPS', ''))
 
-    def test_happyday(self):
+    def test_rate_limiter(self):
         t = Task(assignees=[], release='', link='', project='X',
                  tid='TID', title='T', parent_title='PT', body='B')
 
@@ -141,3 +143,19 @@ class TestAI(TestCase):
 
         # rate 21sec, 10 sec passed => must sleep for 11 sec
         ai.sleep.assert_called_once_with(11)
+
+    def test_alternative_rate_limiter(self):
+        t = Task(assignees=[], release='', link='', project='X',
+                 tid='TID', title='T', parent_title='PT', body='B')
+
+        ai = ChatGPT('', 1)
+        ai._limit_RPM_rate = MagicMock()
+        ai.talk_to_ChatGPT = MagicMock(side_effect=RateLimitError)
+        ai.sleep = MagicMock()
+
+        with self.assertRaises(RateLimitError):
+            ai.generate_essense(t)
+
+        ai.sleep.assert_has_calls([call(63), call(63), call(63)])
+        ai.talk_to_ChatGPT.assert_called()
+        
