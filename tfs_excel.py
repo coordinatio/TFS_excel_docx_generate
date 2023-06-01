@@ -4,7 +4,7 @@ from sys import platform
 from datetime import datetime as dt, timezone, timedelta
 from tempfile import mkstemp
 from typing import Tuple
-from progress.bar import ChargingBar
+from progress.bar import Bar
 import os
 
 from src.ArgsTypes import parse_args
@@ -18,7 +18,7 @@ class TFS_TaskProvider(TaskProvider):
     def get_tasks(self, pat, date_from, date_to) -> list[Task]:
         out = []
         handlers = (HandlerCai, HandlerIS, HandlerLingvo)
-        with ChargingBar('Loading tasks from the TFS:', max=len(handlers)) as bar:
+        with Bar('Loading tasks from the TFS:', max=len(handlers)) as bar:
             for h in handlers:
                 out += h(pat, date_from, date_to).tasks
                 bar.next()

@@ -5,7 +5,7 @@ from typing import List, Tuple
 from pathlib import Path
 from sqlite3 import connect, IntegrityError
 from copy import deepcopy
-from progress.bar import ChargingBar
+from progress.bar import Bar
 
 from src.Task import Task
 
@@ -122,14 +122,11 @@ class ChatGPT(AI):
 
     def talk_to_ChatGPT(self, parent_title: str | None, title: str, body: str | None) -> str:
         m = [
-            {'role': 'system',
-             'content': ('На основе информации из системы отслеживания'
-                         ' работы сформулируй задачу одним кратким предложением.'
-                         ' Не начинай предложения со слов "Задача: ",  "Сформулированная задача:",'
-                         ' "Подзадача:" и подобных, сразу переходи к сути.'
-                         ' Не проси более подробную информацию, работай с тем, что есть.')},
             {'role': 'user',
-             'content': (f'Заголовок задачи: "{parent_title}",'
+             'content': ('На основе заголовка задачи, заголовка подзадачи и тела подзадачи'
+                         ' сформулируй задачу одним кратким предложением, отвечающим на вопрос "Что сделать?".'
+                         ' Не проси более подробную информацию, работай с тем, что есть.'
+                         f' Заголовок задачи: "{parent_title}",'
                          f' заголовок подзадачи: "{title}",'
                          f' тело подзадачи "{body}".')}
         ]
@@ -148,7 +145,7 @@ class Cache:
         if not unk:
             return k
         gen: List[Task] = []
-        with ChargingBar('Talking with the AI:', max=len(unk)) as bar:
+        with Bar('Talking with the AI:', max=len(unk)) as bar:
             for t in unk:
                 o = self.ai.generate_essense(t)
                 self.fs.memorize_essense(o)
