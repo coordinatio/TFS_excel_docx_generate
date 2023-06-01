@@ -41,8 +41,11 @@ class Handler():
             return None
         return self.get_title(p)
 
-    def get_body(self, workitem) -> str:
-        return str(workitem['System.Description'])
+    def get_body(self, workitem) -> str | None:
+        x = workitem['System.Description'] 
+        if x:
+            return str(x)
+        return None
 
     def get_title(self, workitem):
         return str(workitem['Title'])
