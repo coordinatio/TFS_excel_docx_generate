@@ -14,6 +14,7 @@ class Task:
         self.parent_title = kwargs['parent_title'] if 'parent_title' in kwargs else None
         self.project = kwargs['project'] if 'project' in kwargs else None
         self.essence = ''
+        self.essence_completed = ''
         self.body = kwargs['body'] if 'body' in kwargs else None
 
     def __eq__(self, other) -> bool:

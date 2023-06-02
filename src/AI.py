@@ -40,6 +40,7 @@ class SQlite(FastStorage):
                          "   title TEXT NOT NULL, "
                          "   body TEXT, "
                          "   essence TEXT NOT NULL, "
+                         "   essence_completed TEXT NOT NULL, "
                          "   PRIMARY KEY (project, tid)"
                          ");"))
             con.close()
@@ -49,13 +50,14 @@ class SQlite(FastStorage):
         known: List[Task] = []
         unknown: List[Task] = []
         for t in tasks:
-            q = "SELECT essence FROM essence_cache WHERE project=? AND tid=?;"
+            q = "SELECT essence, essence_completed FROM essence_cache WHERE project=? AND tid=?;"
             e = self.con.execute(q, (t.project, t.tid)).fetchone()
             c = deepcopy(t)
             if not e:
                 unknown.append(c)
             else:
                 c.essence = e[0]
+                c.essence_completed = e[1]
                 known.append(c)
         return (known, unknown)
 
@@ -65,11 +67,12 @@ class SQlite(FastStorage):
              'parent_title': task.parent_title,
              'title': task.title,
              'body': task.body,
-             'essence': task.essence}
+             'essence': task.essence,
+             'essence_completed': task.essence_completed}
         q = ('INSERT INTO essence_cache'
-             ' VALUES(:project, :tid, :parent_title, :title, :body, :essence)'
+             ' VALUES(:project, :tid, :parent_title, :title, :body, :essence, :essence_completed)'
              ' ON CONFLICT(project, tid) DO'
-             ' UPDATE SET parent_title=:parent_title, title=:title, essence=:essence, body=:body;')
+             ' UPDATE SET parent_title=:parent_title, title=:title, essence=:essence, body=:body, essence_completed=:essence_completed;')
         try:
             with self.con:
                 self.con.execute(q, d)

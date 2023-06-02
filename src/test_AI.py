@@ -18,6 +18,7 @@ class MockFastStorage(FastStorage):
         known = [deepcopy(t) for t in tasks if t.tid in self.known_ids]
         for k in known:
             k.essence = f'KNOWN_{k.tid}_KNOWN'
+            k.essence_completed = f'KNOWN_{k.tid}_KNOWN'
         return (known, [deepcopy(t) for t in tasks if t.tid not in self.known_ids])
 
     def memorize_essense(self, task: Task):
@@ -27,6 +28,7 @@ class MockFastStorage(FastStorage):
 class MockAI(AI):
     def generate_essense(self, task: Task) -> Task:
         task.essence = f'MockAI_{task.tid}_MockAI'
+        task.essence_completed = f'MockAI_{task.tid}_MockAI'
         return task
 
 
@@ -54,8 +56,10 @@ class TestCache(TestCase):
         for t in t_out:
             if t.tid in ids_known:
                 self.assertEqual(f'KNOWN_{t.tid}_KNOWN', t.essence)
+                self.assertEqual(f'KNOWN_{t.tid}_KNOWN', t.essence_completed)
             else:
                 self.assertEqual(f'MockAI_{t.tid}_MockAI', t.essence)
+                self.assertEqual(f'MockAI_{t.tid}_MockAI', t.essence_completed)
                 z_in.append(t)
         self.assertNotEqual(len(z_in), 0)
 
@@ -64,6 +68,7 @@ class TestCache(TestCase):
         self.assertEqual({t.tid for t in z_in}, {t.tid for t in z_out})
         for z in z_out:
             self.assertEqual(z.essence, f'KNOWN_{z.tid}_KNOWN')
+            self.assertEqual(z.essence_completed, f'KNOWN_{z.tid}_KNOWN')
 
 
 class TestFastStorage(TestCase):
@@ -84,6 +89,7 @@ class TestFastStorage(TestCase):
 
         for unk in unknown:
             unk.essence = f'{unk.project}_{unk.tid} суть суть суть'
+            unk.essence_completed = f'{unk.project}_{unk.tid} суть суть суть'
             s.memorize_essense(unk)
 
         t.append(Task(**a, tid='7777', title='77',
@@ -96,6 +102,7 @@ class TestFastStorage(TestCase):
         self.assertEqual(6, len(known))
         for k in known:
             self.assertEqual(k.essence, f'{k.project}_{k.tid} суть суть суть')
+            self.assertEqual(k.essence_completed, f'{k.project}_{k.tid} суть суть суть')
 
     def test_empty_ids(self):
         a = {'assignees': [], 'release': '', 'link': '',
