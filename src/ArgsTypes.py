@@ -107,8 +107,8 @@ def parse_args():
     else:
         with key_file.open() as f:
             parser.add_argument('--key', default=f.read(), help=key_help)
-    parser.add_argument('--ai_rate_sec', type=int, default=21, metavar='SEC',
-                        help='Maximum allowed requests period to the OpenAI API')
+    parser.add_argument('--ai_rpm_limit', type=int, default=3500, metavar='RPM',
+                        help='Maximum allowed count of requests per minute to the OpenAI API')
 
     mutex = parser.add_mutually_exclusive_group(required=True)
     mutex.add_argument("--draft_update", type=ArgsTypes.arg_dates_interval,

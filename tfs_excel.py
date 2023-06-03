@@ -51,7 +51,7 @@ def main():
             date_from, date_to = get_next(sm)
         else:
             date_from, date_to = a.cache_fill
-        c = Cache(SQlite(path_sqlite), ChatGPT(a.key, a.ai_rate_sec))
+        c = Cache(SQlite(path_sqlite), ChatGPT(a.key, a.ai_rpm_limit))
         c.filter(tp.get_tasks(a.pat, date_from, date_to))
 
     elif a.draft_update is not None:
@@ -97,7 +97,7 @@ def main():
 
     elif a.snapshot_get is not None:
         x = sm.snapshots_list()[a.snapshot_get]
-        c = Cache(SQlite(path_sqlite), ChatGPT(a.key, a.ai_rate_sec))
+        c = Cache(SQlite(path_sqlite), ChatGPT(a.key, a.ai_rpm_limit))
         ll = c.filter(sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime))
         s = ServiceAssignmentsMatrix(ll, a.names_reference)
         file_out = a.out if a.out is not None else mkstemp(**fname_zip)[1]

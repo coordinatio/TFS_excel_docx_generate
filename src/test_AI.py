@@ -18,7 +18,7 @@ class MockFastStorage(FastStorage):
         known = [deepcopy(t) for t in tasks if t.tid in self.known_ids]
         for k in known:
             k.essence = f'KNOWN_{k.tid}_KNOWN'
-            k.essence_completed = f'KNOWN_{k.tid}_KNOWN'
+            k.essence_completed = f'KNOWN_{k.tid}_COMPL'
         return (known, [deepcopy(t) for t in tasks if t.tid not in self.known_ids])
 
     def memorize_essense(self, task: Task):
@@ -28,7 +28,7 @@ class MockFastStorage(FastStorage):
 class MockAI(AI):
     def generate_essense(self, task: Task) -> Task:
         task.essence = f'MockAI_{task.tid}_MockAI'
-        task.essence_completed = f'MockAI_{task.tid}_MockAI'
+        task.essence_completed = f'MockAI_{task.tid}_COMPL'
         return task
 
 
@@ -56,10 +56,10 @@ class TestCache(TestCase):
         for t in t_out:
             if t.tid in ids_known:
                 self.assertEqual(f'KNOWN_{t.tid}_KNOWN', t.essence)
-                self.assertEqual(f'KNOWN_{t.tid}_KNOWN', t.essence_completed)
+                self.assertEqual(f'KNOWN_{t.tid}_COMPL', t.essence_completed)
             else:
                 self.assertEqual(f'MockAI_{t.tid}_MockAI', t.essence)
-                self.assertEqual(f'MockAI_{t.tid}_MockAI', t.essence_completed)
+                self.assertEqual(f'MockAI_{t.tid}_COMPL', t.essence_completed)
                 z_in.append(t)
         self.assertNotEqual(len(z_in), 0)
 
@@ -68,7 +68,7 @@ class TestCache(TestCase):
         self.assertEqual({t.tid for t in z_in}, {t.tid for t in z_out})
         for z in z_out:
             self.assertEqual(z.essence, f'KNOWN_{z.tid}_KNOWN')
-            self.assertEqual(z.essence_completed, f'KNOWN_{z.tid}_KNOWN')
+            self.assertEqual(z.essence_completed, f'KNOWN_{z.tid}_COMPL')
 
 
 class TestFastStorage(TestCase):
@@ -89,7 +89,7 @@ class TestFastStorage(TestCase):
 
         for unk in unknown:
             unk.essence = f'{unk.project}_{unk.tid} суть суть суть'
-            unk.essence_completed = f'{unk.project}_{unk.tid} суть суть суть'
+            unk.essence_completed = f'{unk.project}_{unk.tid} compl compl compl'
             s.memorize_essense(unk)
 
         t.append(Task(**a, tid='7777', title='77',
@@ -102,7 +102,7 @@ class TestFastStorage(TestCase):
         self.assertEqual(6, len(known))
         for k in known:
             self.assertEqual(k.essence, f'{k.project}_{k.tid} суть суть суть')
-            self.assertEqual(k.essence_completed, f'{k.project}_{k.tid} суть суть суть')
+            self.assertEqual(k.essence_completed, f'{k.project}_{k.tid} compl compl compl')
 
     def test_empty_ids(self):
         a = {'assignees': [], 'release': '', 'link': '',
@@ -124,32 +124,28 @@ class TestFastStorage(TestCase):
 
 class TestAI(TestCase):
     # def test_for_manual_prompt_debugging(self):
-    #     c = ChatGPT('%PLACE YOUR APTI KEY HERE%')
-    #     print(c.talk_to_ChatGPT('Сервер-приложений альфа-версия', 'Починить HTTPS', ''))
+    #     c = ChatGPT('', 0)
+    #     e = c.ai_get_todo('Сервер-приложений альфа-версия', 'Починить HTTPS', '')
+    #     print(e)
+    #     print(c.ai_todo2done('Починить HTTPS на сервере-приложении альфа-версии.'))
 
     def test_rate_limiter(self):
-        t = Task(assignees=[], release='', link='', project='X',
-                 tid='TID', title='T', parent_title='PT', body='B')
-
-        ai = ChatGPT('', 21)
+        ai = ChatGPT('', 3)
         ai.now = MagicMock(return_value=100)
         ai.sleep = MagicMock()
-        ai.talk_to_ChatGPT = MagicMock(return_value='MockAI')
 
-        out = ai.generate_essense(t)
+        ai._limit_RPM_rate()
 
-        self.assertEqual('MockAI', out.essence)  # talk occured
-        ai.talk_to_ChatGPT.assert_called_with('PT', 'T', 'B')
         ai.sleep.assert_not_called()  # no sleep during the first call
         self.assertEqual(ai.last_request_ts, 100)  # last_request_ts updated
 
         ai.now = MagicMock(return_value=110)
         ai.sleep = MagicMock()
 
-        out = ai.generate_essense(t)
+        ai._limit_RPM_rate()
 
         # rate 21sec, 10 sec passed => must sleep for 11 sec
-        ai.sleep.assert_called_once_with(11)
+        ai.sleep.assert_called_once_with(10)
 
     def test_alternative_rate_limiter(self):
         t = Task(assignees=[], release='', link='', project='X',
@@ -157,12 +153,12 @@ class TestAI(TestCase):
 
         ai = ChatGPT('', 1)
         ai._limit_RPM_rate = MagicMock()
-        ai.talk_to_ChatGPT = MagicMock(side_effect=RateLimitError)
+        ai.ai_get_todo = MagicMock(side_effect=RateLimitError)
         ai.sleep = MagicMock()
 
         with self.assertRaises(RateLimitError):
             ai.generate_essense(t)
 
         ai.sleep.assert_has_calls([call(63), call(63), call(63)])
-        ai.talk_to_ChatGPT.assert_called()
+        ai.ai_get_todo.assert_called()
         
