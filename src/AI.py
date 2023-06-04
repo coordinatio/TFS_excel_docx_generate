@@ -88,7 +88,7 @@ class AI:
 
 class ChatGPT(AI):
     def __init__(self, api_key: str, max_rpm: float) -> None:
-        if api_key: #could be also set through environment variable, check the docs
+        if api_key:  # could be also set through environment variable, check the docs
             openai.api_key = api_key
         self.max_rate_sec = 60 / max_rpm
         self.last_request_ts: float = 0.0

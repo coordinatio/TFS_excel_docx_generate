@@ -161,4 +161,3 @@ class TestAI(TestCase):
 
         ai.sleep.assert_has_calls([call(63), call(63), call(63)])
         ai.ai_get_todo.assert_called()
-        

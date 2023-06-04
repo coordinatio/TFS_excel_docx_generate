@@ -1,9 +1,16 @@
 from datetime import datetime
 from re import search
+from subprocess import Popen, PIPE, STDOUT
 
 from tfs import TFSAPI
 
 from src.Task import Task
+
+
+def convert_html2plain(html: str) -> str:
+    cmd = ['pandoc', '-f', 'html', '-t', 'plain']
+    p = Popen(cmd, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+    return p.communicate(input=html.encode('utf-8'))[0].decode('utf-8')
 
 
 class Handler():
@@ -15,7 +22,7 @@ class Handler():
                  'release': self.get_release(w),
                  'link': self.get_link(w),
                  'parent_title': self.get_parent_title(w),
-                 'body': self.get_body(w), 
+                 'body': self.get_body(w),
                  'tid': self.get_id(w),
                  'project': self.get_project(w)}
             tasks.append(Task(**x))
@@ -42,9 +49,9 @@ class Handler():
         return self.get_title(p)
 
     def get_body(self, workitem) -> str | None:
-        x = workitem['System.Description'] 
+        x = workitem['System.Description']
         if x:
-            return str(x)
+            return convert_html2plain(str(x))
         return None
 
     def get_title(self, workitem):

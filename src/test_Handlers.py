@@ -1,6 +1,6 @@
 from unittest import TestCase
 from typing import Dict
-from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
+from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo, convert_html2plain
 
 
 class MockWorkitem:
@@ -16,6 +16,14 @@ class MockWorkitem:
 
     def __getitem__(self, key):
         return self.d[key]
+
+
+class TestPandoc(TestCase):
+    def test_html2plain(self):
+        with open('test_input.html', mode='r') as html:
+            with open('test_output.txt', mode='r') as txt:
+                o = convert_html2plain(html.read())
+                self.assertEqual(o, txt.read())
 
 
 class TestAssigneeExtraction(TestCase):
