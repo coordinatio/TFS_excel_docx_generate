@@ -26,8 +26,8 @@ class TestDocsGenerator(TestCase):
 
     def test_validate_template(self):
         dg = DocsGenerator('')
-        self.assertTrue(dg.is_template_valid(Path('test_template_good.docx')))
-        self.assertFalse(dg.is_template_valid(Path('test_template_bad.docx')))
+        self.assertTrue(dg.is_template_valid(Path('.test_files/test_template_good.docx')))
+        self.assertFalse(dg.is_template_valid(Path('.test_files/test_template_bad.docx')))
 
     def test_template_location(self):
         dir_root = Path(mkdtemp())
@@ -35,7 +35,7 @@ class TestDocsGenerator(TestCase):
             dir_todo = dir_root / 'todo'
             dir_todo.mkdir()
             file_CC = dir_todo / 'CC.docx'
-            copy('test_template_good.docx', file_CC)
+            copy('.test_files/test_template_good.docx', file_CC)
 
             dg = DocsGenerator(str(dir_root))
 
@@ -53,13 +53,13 @@ class TestDocsGenerator(TestCase):
             dir_todo = dir_root / 'todo'
             dir_todo.mkdir()
             file_CC = dir_todo / 'CC.docx'
-            copy('test_template_good.docx', file_CC)
+            copy('.test_files/test_template_good.docx', file_CC)
 
             dg = DocsGenerator(str(dir_root))
 
             docx = dg.get_docx('todo', 'CC_13.3.7', 'Тест Тестович',
                                '01-12-2023', '31-12-2023', ['A', 'B'])
-            docx.save('test_get_docx_output.docx')
+            docx.save('test_out_get_docx_output.docx')
         finally:
             rmtree(dir_root)
 
@@ -278,7 +278,7 @@ class TestMatrixPrinter(TestCase):
         t3 = Task('Task 3 with very very long description like you can find in real life',
                   ['Petr'], 'FTW_13.3.7', 'http://task3/asdfupfasdfbdsfdsfasdfadv/asdfefwewdf')
         predef_spend = {'Sheph': {'FTW': 0.4, 'DEFAULT': 0.2}}
-        with ExcelPrinter('test_excel_printer.xlsx', '31-01-2023', '28-02-2023') as printer:
+        with ExcelPrinter('test_out_excel_printer.xlsx', '31-01-2023', '28-02-2023') as printer:
             printer.print(Matrix([t1, t2, t3], {'x': 'Empty'}), predef_spend)
 
 
@@ -341,11 +341,11 @@ class TestDocxGenerator(TestCase):
 
         t = sam.list_essences('FTW_13.3.7', 'Petr')
         x = get_docx('Petr', '01-01-2023', '02-02-2023', t)
-        x.save('test_service_assigment_FTW1337_Petr.docx')
+        x.save('test_out_service_assigment_FTW1337_Petr.docx')
 
         t = sam.list_essences('DEFAULT', 'Oleg')
         x = get_docx('Oleg', '01-01-2023', '02-02-2023', t)
-        x.save('test_service_assigment_DEFAULT_Oleg.docx')
+        x.save('test_out_service_assigment_DEFAULT_Oleg.docx')
 
 
 class TestZipper(TestCase):
@@ -366,12 +366,12 @@ class TestZipper(TestCase):
             dir_done.mkdir()
             for x in (dir_todo, dir_done):
                 for y in ('CC', 'CR', 'DEFAULT'):
-                    copy('test_template_good.docx', x / f'{y}.docx')
+                    copy('.test_files/test_template_good.docx', x / f'{y}.docx')
 
             dg = DocsGenerator(str(dir_root))
 
             s = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
-            with open('test.zip', mode='wb') as f:
+            with open('test_out.zip', mode='wb') as f:
                 f.write(get_bundle_zip(s, '01-01-2023', '02-02-2023', {}, dg))
 
         finally:

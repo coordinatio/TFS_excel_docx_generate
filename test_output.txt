@@ -1,5 +1,0 @@
-(e.g. to the Content AI SDK 11 License Manager installation folder).
-
-2. Launch Content AI SDK 11 License Manager.
-
-11 вместо 12

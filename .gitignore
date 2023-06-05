@@ -1,11 +1,9 @@
 ﻿.vs/*
-*.xlsx
-*.docx
-*.zip
 *__pycache__*
 .cmd
 .db
 .pat
 .key
+.coverage
 .essence_cache.sqlite
-/TFS_docx
+test_out*

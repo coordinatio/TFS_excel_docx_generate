@@ -20,8 +20,8 @@ class MockWorkitem:
 
 class TestPandoc(TestCase):
     def test_html2plain(self):
-        with open('test_input.html', mode='r') as html:
-            with open('test_output.txt', mode='r') as txt:
+        with open('.test_files/test_input.html', mode='r') as html:
+            with open('.test_files/test_output.txt', mode='r') as txt:
                 o = convert_html2plain(html.read())
                 self.assertEqual(o, txt.read())
 
