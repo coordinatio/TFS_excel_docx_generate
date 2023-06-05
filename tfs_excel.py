@@ -9,7 +9,7 @@ import os
 
 from src.ArgsTypes import parse_args
 from src.Handlers import HandlerCai, HandlerIS, HandlerLingvo
-from src.Matrix import Matrix, ExcelPrinter, ServiceAssignmentsMatrix, get_bundle_zip
+from src.Matrix import Matrix, ExcelPrinter, ServiceAssignmentsMatrix, get_bundle_zip, DocsGenerator
 from src.Task import DiskSnapshotStorage, SnapshotManager, Task, TaskProvider
 from src.AI import Cache, SQlite, ChatGPT
 
@@ -35,6 +35,7 @@ def get_next(sm: SnapshotManager) -> Tuple[str, str]:
 
 path_db_dir = './.db'
 path_sqlite = './.essence_cache.sqlite'
+path_templates = './templates'
 fname_xslsx = {'prefix': 'tfs_excel_', 'suffix': '.xlsx'}
 fname_zip = {'prefix': 'tfs_excel_', 'suffix': '.zip'}
 
@@ -100,10 +101,11 @@ def main():
         c = Cache(SQlite(path_sqlite), ChatGPT(a.key, a.ai_rpm_limit))
         ll = c.filter(sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime))
         s = ServiceAssignmentsMatrix(ll, a.names_reference)
+        dg = DocsGenerator(path_templates)
         file_out = a.out if a.out is not None else mkstemp(**fname_zip)[1]
         with open(file_out, mode='wb') as f:
-            z = get_bundle_zip(s, x.date_from, x.date_to, a.predefined_spend)
-            f.write(z)
+            f.write(get_bundle_zip(s, x.date_from, x.date_to,
+                               a.predefined_spend, dg))
 
     if file_out:
         if a.no_open:

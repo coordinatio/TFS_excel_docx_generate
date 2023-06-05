@@ -299,19 +299,35 @@ class TestAssignmentsGeneration(TestCase):
              Task('E', ['Oleg'],         '',           'http://')]
         for x in t:
             x.essence = x.title
-        sam = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
+            x.essence_completed = f'{x.title}_done'
+        s = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
 
-        self.assertEqual(len(sam.list_assignees_by_release('FTW_13.3.7')), 1)
-        self.assertListEqual(sam.list_essences(
-            'FTW_13.3.7', 'Petr'), ['A', 'C'])
+        self.assertEqual(len(s.list_assignees_by_release('FTW_13.3.7')), 1)
 
-        self.assertEqual(len(sam.list_assignees_by_release('OMG_13.3.8')), 2)
-        self.assertListEqual(sam.list_essences('OMG_13.3.8', 'Foma'), ['B'])
-        self.assertListEqual(sam.list_essences('OMG_13.3.8', 'Petr'), ['B'])
+        e = s.list_essences('FTW_13.3.7', 'Petr')
+        self.assertListEqual(e, ['A', 'C'])
+        e = s.list_completed_essences('FTW_13.3.7', 'Petr')
+        self.assertListEqual(e, ['A_done', 'C_done'])
 
-        self.assertEqual(len(sam.list_assignees_by_release('DEFAULT')), 2)
-        self.assertListEqual(sam.list_essences('DEFAULT', 'Petr'), ['D'])
-        self.assertListEqual(sam.list_essences('DEFAULT', 'Oleg'), ['E'])
+        self.assertEqual(len(s.list_assignees_by_release('OMG_13.3.8')), 2)
+        e = s.list_essences('OMG_13.3.8', 'Foma')
+        self.assertListEqual(e, ['B'])
+        e = s.list_completed_essences('OMG_13.3.8', 'Foma')
+        self.assertListEqual(e, ['B_done'])
+        e = s.list_essences('OMG_13.3.8', 'Petr')
+        self.assertListEqual(e, ['B'])
+        e = s.list_completed_essences('OMG_13.3.8', 'Petr')
+        self.assertListEqual(e, ['B_done'])
+
+        self.assertEqual(len(s.list_assignees_by_release('DEFAULT')), 2)
+        e = s.list_essences('DEFAULT', 'Petr')
+        self.assertListEqual(e, ['D'])
+        e = s.list_completed_essences('DEFAULT', 'Petr')
+        self.assertListEqual(e, ['D_done'])
+        e = s.list_essences('DEFAULT', 'Oleg')
+        self.assertListEqual(e, ['E'])
+        e = s.list_completed_essences('DEFAULT', 'Oleg')
+        self.assertListEqual(e, ['E_done'])
 
 
 class TestDocxGenerator(TestCase):
@@ -334,11 +350,29 @@ class TestDocxGenerator(TestCase):
 
 class TestZipper(TestCase):
     def test_happyday(self):
-        t = [Task('A', ['Petr'],         'FTW_13.3.7', 'http://'),
-             Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://'),
-             Task('C', ['Ptr'],          'FTW_13.3.7', 'http://'),
+        t = [Task('A', ['Petr'],         'CC_13.3.7', 'http://'),
+             Task('B', ['Foma', 'Petr'], 'CR_13.3.8', 'http://'),
+             Task('C', ['Ptr'],          'CC_13.3.7', 'http://'),
              Task('D', ['Ptr'],          '',           'http://'),
              Task('E', ['Oleg'],         '',           'http://')]
-        s = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
-        with open('test.zip', mode='wb') as f:
-            f.write(get_bundle_zip(s, '01-01-2023', '02-02-2023', {}))
+        for x in t:
+            x.essence = f'AI_{x.title}'
+            x.essence_completed = f'AI2_{x.title}'
+        dir_root = Path(mkdtemp())
+        try:
+            dir_todo = dir_root / 'todo'
+            dir_todo.mkdir()
+            dir_done = dir_root / 'done'
+            dir_done.mkdir()
+            for x in (dir_todo, dir_done):
+                for y in ('CC', 'CR', 'DEFAULT'):
+                    copy('test_template_good.docx', x / f'{y}.docx')
+
+            dg = DocsGenerator(str(dir_root))
+
+            s = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
+            with open('test.zip', mode='wb') as f:
+                f.write(get_bundle_zip(s, '01-01-2023', '02-02-2023', {}, dg))
+
+        finally:
+            rmtree(dir_root)

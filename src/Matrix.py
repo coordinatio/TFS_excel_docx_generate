@@ -1,4 +1,4 @@
-from typing import List, OrderedDict, Dict
+from typing import List, OrderedDict, Dict, Tuple
 from math import fsum
 from xlsxwriter import Workbook
 from docx import Document
@@ -283,14 +283,15 @@ class ExcelPrinter(MatrixPrinter):
 class ServiceAssignmentsMatrix(Matrix):
     def __init__(self, tasks: List[Task], names_reference={}):
         super().__init__(tasks, names_reference)
-        self._releases: dict[str, dict[str, List[str]]] = dict()
+        self._releases: dict[str, dict[str, List[Tuple[str, str]]]] = dict()
         for r in self.releases_ever_known | {'DEFAULT'}:
             for a in self.list_assignees():
                 tasks = self.get_tasks_in_release(a, r)
                 if tasks:
                     if r not in self._releases:
                         self._releases[r] = dict()
-                    self._releases[r][a] = [t.essence for t in tasks]
+                    self._releases[r][a] = [
+                        (t.essence, t.essence_completed) for t in tasks]
 
     def list_releases(self) -> List[str]:
         return [k for k in self._releases]
@@ -299,7 +300,10 @@ class ServiceAssignmentsMatrix(Matrix):
         return [k for k in self._releases[release]]
 
     def list_essences(self, release: str, assignee: str) -> List[str]:
-        return self._releases[release][assignee]
+        return [x[0] for x in self._releases[release][assignee]]
+
+    def list_completed_essences(self, release: str, assignee: str) -> List[str]:
+        return [x[1] for x in self._releases[release][assignee]]
 
 
 def get_product_from_release(release: str) -> str:
@@ -399,7 +403,7 @@ def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
     return docx
 
 
-def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, predef_spend) -> bytes:
+def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, predef_spend, dg: DocsGenerator) -> bytes:
     z = BytesIO()
     with ZipFile(z, 'a', ZIP_DEFLATED, False) as zf:
         o = BytesIO()
@@ -409,7 +413,11 @@ def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, 
         for r in sam.list_releases():
             for a in sam.list_assignees_by_release(r):
                 o = BytesIO()
-                get_docx(a, date_from, date_to,
-                         sam.list_essences(r, a)).save(o)
-                zf.writestr(f'{r}/{a}.docx', o.getvalue())
+                dg.get_docx('todo', r, a, date_from, date_to,
+                            sam.list_essences(r, a)).save(o)
+                zf.writestr(f'{r}/todo/{a}.docx', o.getvalue())
+                o = BytesIO()
+                dg.get_docx('done', r, a, date_from, date_to,
+                            sam.list_completed_essences(r, a)).save(o)
+                zf.writestr(f'{r}/done/{a}.docx', o.getvalue())
     return z.getvalue()
