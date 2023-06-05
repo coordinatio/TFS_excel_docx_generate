@@ -389,20 +389,6 @@ class DocsGenerator:
         return docx
 
 
-def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
-    docx = Document()
-    table = docx.add_table(1, cols=3, style="Table Grid")
-    table.allow_autofit = True
-    head_cells = table.rows[0].cells
-    for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
-        head_cells[i].text = item
-    row_cells = table.add_row().cells
-    row_cells[0].text = ';\n\n'.join(tasks)
-    row_cells[1].text = f"{date_from} - {date_to}"
-    row_cells[2].text = assignee
-    return docx
-
-
 def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, predef_spend, dg: DocsGenerator) -> bytes:
     z = BytesIO()
     with ZipFile(z, 'a', ZIP_DEFLATED, False) as zf:

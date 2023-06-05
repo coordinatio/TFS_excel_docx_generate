@@ -4,7 +4,7 @@ from pathlib import Path
 from shutil import copy, rmtree
 
 from src.Task import Task
-from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx, get_bundle_zip, DocsGenerator, get_product_from_release
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_bundle_zip, DocsGenerator, get_product_from_release
 
 
 class TestDocsGenerator(TestCase):
@@ -26,8 +26,10 @@ class TestDocsGenerator(TestCase):
 
     def test_validate_template(self):
         dg = DocsGenerator('')
-        self.assertTrue(dg.is_template_valid(Path('.test_files/test_template_good.docx')))
-        self.assertFalse(dg.is_template_valid(Path('.test_files/test_template_bad.docx')))
+        self.assertTrue(dg.is_template_valid(
+            Path('.test_files/test_template_good.docx')))
+        self.assertFalse(dg.is_template_valid(
+            Path('.test_files/test_template_bad.docx')))
 
     def test_template_location(self):
         dir_root = Path(mkdtemp())
@@ -330,24 +332,6 @@ class TestAssignmentsGeneration(TestCase):
         self.assertListEqual(e, ['E_done'])
 
 
-class TestDocxGenerator(TestCase):
-    def test_happydate(self):
-        t = [Task('A', ['Petr'],         'FTW_13.3.7', 'http://'),
-             Task('B', ['Foma', 'Petr'], 'OMG_13.3.8', 'http://'),
-             Task('C', ['Ptr'],          'FTW_13.3.7', 'http://'),
-             Task('D', ['Ptr'],          '',           'http://'),
-             Task('E', ['Oleg'],         '',           'http://')]
-        sam = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
-
-        t = sam.list_essences('FTW_13.3.7', 'Petr')
-        x = get_docx('Petr', '01-01-2023', '02-02-2023', t)
-        x.save('test_out_service_assigment_FTW1337_Petr.docx')
-
-        t = sam.list_essences('DEFAULT', 'Oleg')
-        x = get_docx('Oleg', '01-01-2023', '02-02-2023', t)
-        x.save('test_out_service_assigment_DEFAULT_Oleg.docx')
-
-
 class TestZipper(TestCase):
     def test_happyday(self):
         t = [Task('A', ['Petr'],         'CC_13.3.7', 'http://'),
@@ -366,7 +350,8 @@ class TestZipper(TestCase):
             dir_done.mkdir()
             for x in (dir_todo, dir_done):
                 for y in ('CC', 'CR', 'DEFAULT'):
-                    copy('.test_files/test_template_good.docx', x / f'{y}.docx')
+                    copy('.test_files/test_template_good.docx',
+                         x / f'{y}.docx')
 
             dg = DocsGenerator(str(dir_root))
 
