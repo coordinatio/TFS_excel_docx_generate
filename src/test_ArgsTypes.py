@@ -5,6 +5,14 @@ from unittest import TestCase
 from src.ArgsTypes import ArgsTypes
 
 
+class TestIntRange(TestCase):
+    def test_various(self):
+        self.assertListEqual([2, 3, 4], ArgsTypes.arg_range_or_single("2-4"))
+        self.assertListEqual([3], ArgsTypes.arg_range_or_single("3"))
+        with self.assertRaises(ArgumentTypeError):
+            ArgsTypes.arg_range_or_single("WTF")
+
+
 class TestNamesReferenceValidator(TestCase):
     def test_valid(self):
         j = '{"a" : "b", "s" : "b", "d" : "f"}'

@@ -83,6 +83,17 @@ class ArgsTypes:
                                      "automatically based on the latest snapshot available."))
         return (f'{m.group(2)}-{m.group(3)}-{m.group(4)}', f'{m.group(6)}-{m.group(7)}-{m.group(8)}')
 
+    @staticmethod
+    def arg_range_or_single(i: str) -> list[int]:
+        m = re.match(r'^(\d+)$', i)
+        if m:
+            return [int(m.group(1))]
+        m = re.match(r'^(\d+)-(\d+)', i)
+        if m:
+            return [i for i in range(int(m.group(1)), int(m.group(2))+1)]
+        raise ArgumentTypeError(('Please supply either a single number'
+                                 f' or a range like 2-4. Got "{i}"'))
+
 
 def parse_args():
     parser = ArgumentParser()
@@ -126,9 +137,10 @@ def parse_args():
     mutex.add_argument("--draft_approve", type=int, metavar='DRAFT#',
                        help="Marks the draft as containing verified information.")
     mutex.add_argument("--snapshots_list", action='store_true')
-    mutex.add_argument("--snapshot_get", type=int, metavar='SNAPSHOT#',
-                       help=("Generates the .zip containing the time distribution's .xlsx "
-                             "and service assignments' .docx files."))
+    mutex.add_argument("--snapshot_get", type=ArgsTypes.arg_range_or_single, metavar='# | #-#',
+                       help=("Generates .zip containing the time distribution's .xlsx "
+                             "and the service assignments' .docx files. Accepts either "
+                             "a single integer or a range like 1-4"))
 
     parser.add_argument("--out",
                         metavar='./FILE_TO_WRITE_INTO.xlsx|.zip',

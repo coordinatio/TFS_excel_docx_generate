@@ -1,3 +1,4 @@
+from datetime import datetime as dt
 import json
 import pathlib
 from typing import List
@@ -144,11 +145,12 @@ class SnapshotManager:
         self.s.delete('drafts', id2)
 
     def snapshots_list(self) -> list[SnapshotInfo]:
-        out = []
+        out: list[SnapshotInfo] = []
         for data_id in self.s.list('snapshots'):
             date_from, date_to, mtime = self.id3_decode(data_id)
             out.append(SnapshotInfo(date_from, date_to, mtime))
-        return out
+        d = [(dt.strptime(x.date_from, '%d-%m-%Y'), x) for x in out]
+        return [x[1] for x in sorted(d)]
 
     def snapshot_get_tasks(self, date_from, date_to, mtime) -> list[Task]:
         x = self.s.read('snapshots', self.id3_encode(

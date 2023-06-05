@@ -33,6 +33,16 @@ def get_next(sm: SnapshotManager) -> Tuple[str, str]:
     return (date_fr, date_to)
 
 
+def get_the_earliest(dates: list[str]) -> str:
+    d = [(dt.strptime(x, '%d-%m-%Y'), x) for x in dates]
+    return sorted(d, reverse=False)[0][1]
+
+
+def get_the_latest(dates: list[str]) -> str:
+    d = [(dt.strptime(x, '%d-%m-%Y'), x) for x in dates]
+    return sorted(d, reverse=True)[0][1]
+
+
 path_db_dir = './.db'
 path_sqlite = './.essence_cache.sqlite'
 path_templates = './templates'
@@ -97,15 +107,21 @@ def main():
                    f' mtime: {x.strftime("%d-%m-%Y %H:%M:%S.%f")}'))
 
     elif a.snapshot_get is not None:
-        x = sm.snapshots_list()[a.snapshot_get]
+        fr, to, tasks = [], [], []
+        for i in a.snapshot_get:
+            x = sm.snapshots_list()[i]
+            tasks += sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime)
+            fr.append(x.date_from)
+            to.append(x.date_to)
+        date_fr = get_the_earliest(fr)
+        date_to = get_the_latest(to)
+
         c = Cache(SQlite(path_sqlite), ChatGPT(a.key, a.ai_rpm_limit))
-        ll = c.filter(sm.snapshot_get_tasks(x.date_from, x.date_to, x.mtime))
-        s = ServiceAssignmentsMatrix(ll, a.names_reference)
+        s = ServiceAssignmentsMatrix(c.filter(tasks), a.names_reference)
         dg = DocsGenerator(path_templates)
         file_out = a.out if a.out is not None else mkstemp(**fname_zip)[1]
         with open(file_out, mode='wb') as f:
-            f.write(get_bundle_zip(s, x.date_from, x.date_to,
-                               a.predefined_spend, dg))
+            f.write(get_bundle_zip(s, date_fr, date_to, a.predefined_spend, dg))
 
     if file_out:
         if a.no_open:
