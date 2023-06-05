@@ -1,7 +1,67 @@
 from unittest import TestCase
+from tempfile import mkdtemp, mkstemp
+from pathlib import Path
+from shutil import copy, rmtree
 
 from src.Task import Task
-from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx, get_bundle_zip
+from src.Matrix import ExcelPrinter, Matrix, MatrixPrinter, NameNormalizer, ServiceAssignmentsMatrix, get_docx, get_bundle_zip, DocsGenerator, get_product_from_release
+
+
+class TestDocsGenerator(TestCase):
+    def test_product_extraction(self):
+        d = DocsGenerator('')
+        self.assertEqual('CC', get_product_from_release('CC_12.6.1'))
+        self.assertEqual('CRE', get_product_from_release('CRE_12.6.1'))
+        self.assertEqual('CRN', get_product_from_release('CRN_1.0.0'))
+        self.assertEqual('CRS', get_product_from_release('CRS_14.0.3'))
+        self.assertEqual('CR', get_product_from_release('CR_15.1.0'))
+        self.assertEqual('IS', get_product_from_release('IS_5.2'))
+        self.assertEqual('LFM', get_product_from_release('LFM_1.13.1'))
+        self.assertEqual('LLA', get_product_from_release('LLA_1.41'))
+        self.assertEqual('LLI', get_product_from_release('LLI_1.57'))
+        self.assertEqual('LMA', get_product_from_release('LMA_4.15.2'))
+        self.assertEqual('LMI', get_product_from_release('LMI_4.7.1'))
+        self.assertEqual('LX6', get_product_from_release('LX6_16.3.1'))
+        self.assertEqual('DEFAULT', get_product_from_release('DEFAULT'))
+
+    def test_validate_template(self):
+        dg = DocsGenerator('')
+        self.assertTrue(dg.is_template_valid(Path('test_template_good.docx')))
+        self.assertFalse(dg.is_template_valid(Path('test_template_bad.docx')))
+
+    def test_template_location(self):
+        dir_root = Path(mkdtemp())
+        try:
+            dir_todo = dir_root / 'todo'
+            dir_todo.mkdir()
+            file_CC = dir_todo / 'CC.docx'
+            copy('test_template_good.docx', file_CC)
+
+            dg = DocsGenerator(str(dir_root))
+
+            self.assertEqual(file_CC, dg.locate_template('todo', 'CC_13.3.7'))
+            with self.assertRaises(ValueError):
+                dg.locate_template('WTF', 'CC_13.3.7')
+            with self.assertRaises(RuntimeError):
+                dg.locate_template('todo', 'OMG')
+        finally:
+            rmtree(dir_root)
+
+    def test_get_docx(self):
+        dir_root = Path(mkdtemp())
+        try:
+            dir_todo = dir_root / 'todo'
+            dir_todo.mkdir()
+            file_CC = dir_todo / 'CC.docx'
+            copy('test_template_good.docx', file_CC)
+
+            dg = DocsGenerator(str(dir_root))
+
+            docx = dg.get_docx('todo', 'CC_13.3.7', 'Тест Тестович',
+                               '01-12-2023', '31-12-2023', ['A', 'B'])
+            docx.save('test_get_docx_output.docx')
+        finally:
+            rmtree(dir_root)
 
 
 class TestMatrix(TestCase):
@@ -242,7 +302,8 @@ class TestAssignmentsGeneration(TestCase):
         sam = ServiceAssignmentsMatrix(t, {"Ptr": "Petr", "x": "y"})
 
         self.assertEqual(len(sam.list_assignees_by_release('FTW_13.3.7')), 1)
-        self.assertListEqual(sam.list_essences('FTW_13.3.7', 'Petr'), ['A', 'C'])
+        self.assertListEqual(sam.list_essences(
+            'FTW_13.3.7', 'Petr'), ['A', 'C'])
 
         self.assertEqual(len(sam.list_assignees_by_release('OMG_13.3.8')), 2)
         self.assertListEqual(sam.list_essences('OMG_13.3.8', 'Foma'), ['B'])

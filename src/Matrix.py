@@ -4,6 +4,9 @@ from xlsxwriter import Workbook
 from docx import Document
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
+from pathlib import Path
+from re import match
+from datetime import datetime
 
 from src.Task import Task
 
@@ -299,6 +302,89 @@ class ServiceAssignmentsMatrix(Matrix):
         return self._releases[release][assignee]
 
 
+def get_product_from_release(release: str) -> str:
+    m = match(r'([A-Z\d]+)(_\d+\.\d+\.\d+)?', release)
+    if m:
+        return m.group(1)
+    raise RuntimeError(
+        f"Unable to extract product from relese '{release}'")
+
+
+def docx_move_table_after(table, paragraph):
+    tbl, p = table._tbl, paragraph._p
+    p.addnext(tbl)
+
+
+def docx_delete_paragraph(paragraph):
+    p = paragraph._element
+    p.getparent().remove(p)
+    p._p = p._element = None
+
+
+def docx_form_table(docx, assignee: str, date_from: str, date_to: str, tasks: List[str]):
+    table = docx.add_table(1, cols=3, style="Table Grid")
+    table.allow_autofit = True
+    head_cells = table.rows[0].cells
+    for i, item in enumerate(['Описание', 'Дата начала/конца', 'Исполнитель']):
+        head_cells[i].text = item
+    row_cells = table.add_row().cells
+    row_cells[0].text = ';\n\n'.join(tasks)
+    row_cells[1].text = f"{date_from} - {date_to}"
+    row_cells[2].text = assignee
+    return table
+
+
+class DocsGenerator:
+    def __init__(self, dir_templates: str) -> None:
+        self.dir_templates = Path(dir_templates)
+
+    def locate_template(self, doctype: str, release: str) -> Path:
+        if doctype not in ('todo', 'done'):
+            raise ValueError(("The doctype must be either 'todo' or 'done',"
+                              f" but got '{doctype}'"))
+        p = get_product_from_release(release)
+        o = self.dir_templates / doctype / f'{p}.docx'
+        if o.exists() and o.is_file():
+            return o
+        raise RuntimeError(f"Template {o.absolute()} is not found")
+
+    def is_template_valid(self, template: Path) -> bool:
+        docx = Document(template)
+        must = {'%INSERT_THE_TABLE_HERE%': False, '%ASSIGNEE%': False}
+        for p in docx.paragraphs:
+            for k in must:
+                if p.text.find(k) != -1:
+                    must[k] = True
+        for v in must.values():
+            if not v:
+                return False
+        return True
+
+    def get_docx(self, doctype: str, release: str, assignee: str,
+                 date_from: str, date_to: str,
+                 tasks: List[str]):
+
+        template = self.locate_template(doctype, release)
+        if not self.is_template_valid(template):
+            raise RuntimeError(f'Invalid template: {template}')
+        docx = Document(template)
+
+        table = docx_form_table(docx, assignee, date_from, date_to, tasks)
+        for p in docx.paragraphs:
+            if p.text.find('%INSERT_THE_TABLE_HERE%') != -1:
+                docx_move_table_after(table, p)
+                docx_delete_paragraph(p)
+                break
+
+        replace_map = {'%ASSIGNEE%': assignee,
+                       '%DATE_FROM%': date_from}
+        for p in docx.paragraphs:
+            for k, v in replace_map.items():
+                if p.text.find(k) != -1:
+                    p.text = p.text.replace(k, v)
+        return docx
+
+
 def get_docx(assignee: str, date_from: str, date_to: str, tasks: List[str]):
     docx = Document()
     table = docx.add_table(1, cols=3, style="Table Grid")
@@ -323,6 +409,7 @@ def get_bundle_zip(sam: ServiceAssignmentsMatrix, date_from: str, date_to: str, 
         for r in sam.list_releases():
             for a in sam.list_assignees_by_release(r):
                 o = BytesIO()
-                get_docx(a, date_from, date_to, sam.list_essences(r, a)).save(o)
+                get_docx(a, date_from, date_to,
+                         sam.list_essences(r, a)).save(o)
                 zf.writestr(f'{r}/{a}.docx', o.getvalue())
     return z.getvalue()
